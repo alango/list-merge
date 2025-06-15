@@ -301,15 +301,253 @@ type ActionType =
 - **Action History**: Command pattern for undo/redo functionality
 - **Selection Manager**: Centralized multi-select state management
 
-## 4. Data Flow and Storage
+## 4. Component Communication
 
-### 4.1 Data Persistence Strategy
+### 4.1 Communication Architecture
+
+#### 4.1.1 Event System
+```typescript
+interface ComponentEvent<T = any> {
+  type: string;
+  source: string;
+  target?: string;
+  data: T;
+  timestamp: Date;
+}
+
+class EventBus {
+  private listeners: Map<string, Set<(event: ComponentEvent) => void>> = new Map();
+  
+  // Event subscription
+  subscribe<T>(eventType: string, handler: (event: ComponentEvent<T>) => void): () => void;
+  unsubscribe(eventType: string, handler: Function): void;
+  
+  // Event emission
+  emit<T>(eventType: string, data: T, source: string, target?: string): void;
+  
+  // Scoped events for component isolation
+  createScope(scopeId: string): ScopedEventBus;
+}
+```
+
+#### 4.1.2 Cross-Panel Communication Patterns
+```typescript
+// Selection synchronization across panels
+interface SelectionEvent {
+  selectedItems: string[];
+  selectionType: 'main-list' | 'input-list';
+  source: 'user-interaction' | 'programmatic';
+}
+
+// Tag operation coordination
+interface TagOperationEvent {
+  operation: 'ADD' | 'REMOVE' | 'UPDATE';
+  itemIds: string[];
+  tagIds: string[];
+  success: boolean;
+  errors?: string[];
+}
+
+// Drag and drop coordination
+interface DragEvent {
+  phase: 'start' | 'over' | 'end' | 'cancel';
+  itemId: string;
+  sourceType: 'input-list' | 'main-list' | 'tag-pool';
+  targetType?: 'input-list' | 'main-list' | 'tag-pool';
+  data: any;
+}
+```
+
+### 4.2 Panel Communication Patterns
+
+#### 4.2.1 Properties Panel Synchronization
+- **Selection Subscription**: Properties panel subscribes to selection change events
+- **Real-time Updates**: Immediate reflection of changes from other panels
+- **Edit Mode Coordination**: Prevents conflicts when multiple panels try to edit same item
+- **Validation Feedback**: Propagates validation results back to triggering components
+
+```typescript
+class PropertiesPanel {
+  private subscriptions: (() => void)[] = [];
+  
+  componentDidMount() {
+    // Subscribe to selection events
+    this.subscriptions.push(
+      eventBus.subscribe('SELECTION_CHANGED', this.handleSelectionChange)
+    );
+    
+    // Subscribe to item updates from other sources
+    this.subscriptions.push(
+      eventBus.subscribe('ITEM_UPDATED', this.handleItemUpdate)
+    );
+  }
+  
+  private handleSelectionChange = (event: ComponentEvent<SelectionEvent>) => {
+    // Update displayed item details
+    // Clear edit state if selection changed
+    // Load new item properties
+  };
+}
+```
+
+#### 4.2.2 Tag Pool Integration
+- **Tag Usage Updates**: Real-time updates when tags are applied/removed
+- **Color Synchronization**: Immediate color changes reflected across all components
+- **Auto-suggestion Coordination**: Tag input components receive live suggestions
+- **Bulk Operation Feedback**: Progress and completion status for multi-select operations
+
+### 4.3 State Synchronization Mechanisms
+
+#### 4.3.1 Optimistic Updates
+```typescript
+interface OptimisticUpdate<T> {
+  id: string;
+  operation: string;
+  optimisticData: T;
+  rollbackData: T;
+  confirmed: boolean;
+}
+
+class OptimisticUpdateManager {
+  private pendingUpdates: Map<string, OptimisticUpdate<any>> = new Map();
+  
+  // Apply optimistic update immediately
+  applyOptimistic<T>(id: string, operation: string, data: T, rollback: T): void;
+  
+  // Confirm or rollback based on operation result
+  confirmUpdate(id: string): void;
+  rollbackUpdate(id: string): void;
+  
+  // Bulk operations support
+  applyBulkOptimistic(updates: OptimisticUpdate<any>[]): void;
+}
+```
+
+#### 4.3.2 Conflict Resolution
+- **Last-Writer-Wins**: Simple conflict resolution for most operations
+- **User Confirmation**: Prompt user for conflicts that can't be auto-resolved
+- **Merge Strategies**: Intelligent merging for compatible concurrent changes
+- **Rollback Coordination**: Coordinated rollback when operations fail
+
+### 4.4 Command Coordination
+
+#### 4.4.1 Undo/Redo Communication
+```typescript
+interface CommandCoordinator {
+  // Command execution with component coordination
+  executeCommand(command: UndoableAction): Promise<void>;
+  
+  // Undo with affected component notification
+  undoCommand(commandId: string): Promise<void>;
+  
+  // Redo with state synchronization
+  redoCommand(commandId: string): Promise<void>;
+  
+  // Bulk command coordination
+  executeBulkCommands(commands: UndoableAction[]): Promise<void>;
+}
+
+// Components register for command lifecycle events
+eventBus.subscribe('COMMAND_EXECUTED', (event) => {
+  // Update component state based on command execution
+});
+
+eventBus.subscribe('COMMAND_UNDONE', (event) => {
+  // Revert component changes
+});
+```
+
+#### 4.4.2 Bulk Operation Coordination
+- **Progress Tracking**: Real-time progress updates for long-running operations
+- **Partial Success Handling**: Graceful handling when some operations succeed/fail
+- **User Feedback**: Loading states and completion notifications
+- **Cancellation Support**: Ability to cancel long-running bulk operations
+
+### 4.5 Error Propagation and Handling
+
+#### 4.5.1 Error Communication Channels
+```typescript
+interface ComponentError {
+  id: string;
+  component: string;
+  type: 'validation' | 'operation' | 'system';
+  message: string;
+  details?: any;
+  recoverable: boolean;
+}
+
+class ErrorCoordinator {
+  // Error reporting from components
+  reportError(error: ComponentError): void;
+  
+  // Error subscription for interested components
+  subscribeToErrors(filter: (error: ComponentError) => boolean, handler: (error: ComponentError) => void): void;
+  
+  // Recovery action coordination
+  triggerRecovery(errorId: string, recoveryAction: string): void;
+}
+```
+
+#### 4.5.2 User Feedback Coordination
+- **Toast Notifications**: Centralized toast management for operation feedback
+- **Error Boundaries**: Graceful degradation with user-friendly fallbacks
+- **Validation Feedback**: Real-time validation with clear error messaging
+- **Recovery Suggestions**: Actionable suggestions for error resolution
+
+### 4.6 Performance Communication
+
+#### 4.6.1 Debounced Operations Coordination
+```typescript
+class DebounceCoordinator {
+  private debouncedOperations: Map<string, NodeJS.Timeout> = new Map();
+  
+  // Coordinate debounced updates across components
+  scheduleUpdate(operationId: string, operation: () => void, delay: number): void;
+  
+  // Cancel pending operations when components unmount
+  cancelOperation(operationId: string): void;
+  
+  // Force immediate execution of pending operations
+  flushOperation(operationId: string): void;
+}
+```
+
+#### 4.6.2 Virtual Scrolling Communication
+- **Viewport Coordination**: Components notify scrolling containers of size changes
+- **Item Measurement**: Dynamic height calculation communication
+- **Focus Management**: Keyboard navigation across virtualized lists
+- **Render Optimization**: Coordinate which items are actually rendered
+
+### 4.7 Testing Communication Patterns
+
+#### 4.7.1 Component Communication Testing
+```typescript
+// Test utilities for component communication
+class CommunicationTestHelper {
+  // Mock event bus for isolated testing
+  createMockEventBus(): EventBus;
+  
+  // Verify event emissions
+  expectEventEmitted(eventType: string, data?: any): void;
+  
+  // Simulate cross-component interactions
+  simulateSelectionChange(items: string[]): void;
+  simulateTagOperation(operation: TagOperationEvent): void;
+  
+  // Test error propagation
+  simulateError(error: ComponentError): void;
+}
+```
+
+## 5. Data Flow and Storage
+
+### 5.1 Data Persistence Strategy
 - **Automatic Saves**: Debounced saves after state changes
 - **Storage Keys**: Structured key naming for easy data retrieval
 - **Data Versioning**: Schema versioning for future compatibility
 - **Storage Limits**: Monitoring and handling of localStorage quotas
 
-### 4.2 File Import/Export Flow
+### 5.2 File Import/Export Flow
 ```
 Import Flow:
 File Selection → File Parsing → Data Validation → State Update
@@ -318,7 +556,7 @@ Export Flow:
 State Extraction → Format Conversion → File Generation → Download
 ```
 
-### 4.3 Storage Schema
+### 5.3 Storage Schema
 ```typescript
 // LocalStorage Keys
 const STORAGE_KEYS = {
@@ -335,15 +573,15 @@ interface StoredData {
 }
 ```
 
-## 5. Drag and Drop Implementation
+## 6. Drag and Drop Implementation
 
-### 5.1 DnD Architecture
+### 6.1 DnD Architecture
 - **@dnd-kit/core**: Primary drag-and-drop library
 - **Multiple Drop Zones**: Input lists and main list as drop targets
 - **Visual Feedback**: Custom drag overlays and drop indicators
 - **Accessibility**: Keyboard navigation and screen reader support
 
-### 5.2 Drag Operations
+### 6.2 Drag Operations
 ```typescript
 interface DragEndEvent {
   active: { id: string; data: DragData };
@@ -365,9 +603,9 @@ interface BulkOperation {
 }
 ```
 
-## 6. Tag Management Implementation
+## 7. Tag Management Implementation
 
-### 6.1 Tag Creation Workflow
+### 7.1 Tag Creation Workflow
 ```typescript
 // Tag creation with validation
 interface CreateTagRequest {
@@ -382,93 +620,93 @@ interface CreateTagResponse {
 }
 ```
 
-### 6.2 Autocomplete Integration
+### 7.2 Autocomplete Integration
 - **Input Components**: TagEditor and bulk tagging interfaces include autocomplete
 - **Debounced Search**: 300ms delay for real-time suggestions without performance impact
 - **Keyboard Navigation**: Arrow keys for suggestion navigation, Enter to select, Escape to dismiss
 - **Visual Feedback**: Highlighted matching text in suggestions, tag colors preview
 
-### 6.3 Tag Color System
+### 7.3 Tag Color System
 - **Default Palette**: Predefined set of accessible, distinct colors
 - **Custom Colors**: Color picker with validation for accessibility contrast
 - **Auto-Assignment**: New tags automatically assigned colors from unused palette
 - **Color Persistence**: Tag colors maintained across sessions and export/import
 
-## 7. File Processing
+## 8. File Processing
 
-### 7.1 Supported Import Formats
+### 8.1 Supported Import Formats
 - **CSV**: Single-row format where all entries are comma-separated values in one row
 - **Plain Text**: Line-by-line format with each entry on a new line, empty lines ignored
 - **JSON**: Application's export format containing complete project data with ranked lists and tags
 
-### 7.2 Export Format
+### 8.2 Export Format
 - **JSON**: Complete project export including all input lists, main ranked list, tags, and metadata
 - **Structured Data**: Full project backup containing all user work
 - **Reimport Capability**: Exported files can be imported to restore complete project state
 
-## 8. Performance Considerations
+## 9. Performance Considerations
 
-### 8.1 Optimization Strategies
+### 9.1 Optimization Strategies
 - **Virtual Scrolling**: For large lists (>1000 items)
 - **Memoization**: React.memo for expensive components
 - **Debounced Updates**: Prevent excessive re-renders during typing
 - **Lazy Loading**: Code splitting for non-critical features
 
-### 8.2 Memory Management
+### 9.2 Memory Management
 - **Cleanup**: Proper cleanup of event listeners and timers
 - **Storage Monitoring**: Track localStorage usage
 - **Garbage Collection**: Avoid memory leaks in drag operations
 
-## 9. Error Handling
+## 10. Error Handling
 
-### 9.1 Error Boundaries
+### 10.1 Error Boundaries
 - **Component-Level**: Isolate errors to prevent full app crashes
 - **Fallback UI**: User-friendly error displays
 - **Error Reporting**: Console logging for debugging
 
-### 9.2 Data Validation
+### 10.2 Data Validation
 - **Import Validation**: Schema validation for imported data
 - **Storage Validation**: Corruption detection for stored data
 - **User Input**: Client-side validation with clear error messages
 
-## 10. Testing Strategy
+## 11. Testing Strategy
 
-### 10.1 Testing Approach
+### 11.1 Testing Approach
 - **Unit Tests**: Jest for utility functions and reducers
 - **Component Tests**: React Testing Library for UI components
 - **Integration Tests**: E2E testing for critical user flows
 - **Manual Testing**: Cross-browser compatibility testing
 
-### 10.2 Test Coverage Areas
+### 11.2 Test Coverage Areas
 - **Drag and Drop**: Comprehensive testing of DnD interactions
 - **Data Persistence**: LocalStorage operations and data integrity
 - **File Processing**: Import/export functionality
 - **State Management**: Reducer logic and state transitions
 
-## 11. Deployment and Build
+## 12. Deployment and Build
 
-### 11.1 Build Configuration
+### 12.1 Build Configuration
 - **Vite Configuration**: Optimized for production builds
 - **Asset Optimization**: Image and CSS optimization
 - **Bundle Analysis**: Monitoring bundle size and dependencies
 - **Environment Variables**: Configuration for different environments
 
-### 11.2 Deployment Options
+### 12.2 Deployment Options
 - **Static Hosting**: Netlify, Vercel, or GitHub Pages
 - **CDN Distribution**: Fast global content delivery
 - **Progressive Web App**: PWA features for offline usage
 - **Browser Compatibility**: Support for modern browsers (ES2020+)
 
-## 12. Future Extensibility
+## 13. Future Extensibility
 
-### 12.1 Potential Enhancements
+### 13.1 Potential Enhancements
 - **Cloud Sync**: Optional cloud storage integration
 - **Collaboration**: Real-time collaborative editing
 - **Advanced Filtering**: Complex query-based filtering
 - **Plugin System**: Extensible architecture for custom features
 - **Mobile App**: React Native version for mobile devices
 
-### 12.2 Architecture Considerations
+### 13.2 Architecture Considerations
 - **Modular Design**: Easy addition of new features
 - **API Abstraction**: Storage layer abstraction for future backends
 - **Configuration System**: Feature flags and user preferences
