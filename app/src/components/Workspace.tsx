@@ -10,7 +10,14 @@ interface WorkspaceProps {
   onSelectInputList: (listId: string) => void;
   onAddInputList: () => void;
   onImportToList: (listId: string) => void;
+  onAddItemToList: (listId: string, content: string) => void;
+  onEditListItem: (listId: string, itemId: string, content: string) => void;
+  onDeleteListItem: (listId: string, itemId: string) => void;
+  onRenameList: (listId: string, newName: string) => void;
+  onDeleteList: (listId: string) => void;
+  onMoveToMainList: (listId: string, itemId: string) => void;
   onSelectMainItem: (itemId: string, isMultiSelect: boolean) => void;
+  onRemoveFromMainList: (itemId: string) => void;
   onReorderMainItems: (startIndex: number, endIndex: number) => void;
   onAddTag: (itemIds: string[], tagId: string) => void;
   onRemoveTag: (itemIds: string[], tagId: string) => void;
@@ -25,7 +32,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   onSelectInputList,
   onAddInputList,
   onImportToList,
+  onAddItemToList,
+  onEditListItem,
+  onDeleteListItem,
+  onRenameList,
+  onDeleteList,
+  onMoveToMainList,
   onSelectMainItem,
+  onRemoveFromMainList,
   onReorderMainItems,
   onAddTag,
   onRemoveTag,
@@ -61,6 +75,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           onSelectList={onSelectInputList}
           onAddList={onAddInputList}
           onImportList={onImportToList}
+          onAddItem={onAddItemToList}
+          onEditItem={onEditListItem}
+          onDeleteItem={onDeleteListItem}
+          onRenameList={onRenameList}
+          onDeleteList={onDeleteList}
+          onMoveToMain={onMoveToMainList}
         />
       </div>
 
@@ -70,7 +90,20 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           items={currentProject.mainList}
           selectedItems={appState.ui.selectedItems}
           onSelectItem={onSelectMainItem}
+          onRemoveItem={onRemoveFromMainList}
           onReorderItems={onReorderMainItems}
+          onMoveUp={(itemId) => {
+            const item = currentProject.mainList.find(i => i.id === itemId);
+            if (item && item.order > 1) {
+              onReorderMainItems(item.order - 1, item.order);
+            }
+          }}
+          onMoveDown={(itemId) => {
+            const item = currentProject.mainList.find(i => i.id === itemId);
+            if (item && item.order < currentProject.mainList.length) {
+              onReorderMainItems(item.order + 1, item.order);
+            }
+          }}
         />
       </div>
 

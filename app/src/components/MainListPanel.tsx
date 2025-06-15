@@ -5,14 +5,20 @@ interface MainListPanelProps {
   items: MainListItem[];
   selectedItems: string[];
   onSelectItem: (itemId: string, isMultiSelect: boolean) => void;
+  onRemoveItem: (itemId: string) => void;
   onReorderItems: (startIndex: number, endIndex: number) => void;
+  onMoveUp: (itemId: string) => void;
+  onMoveDown: (itemId: string) => void;
 }
 
 export const MainListPanel: React.FC<MainListPanelProps> = ({
   items,
   selectedItems,
   onSelectItem,
-  onReorderItems
+  onRemoveItem,
+  onReorderItems,
+  onMoveUp,
+  onMoveDown
 }) => {
   return (
     <div className="panel h-full flex flex-col">
@@ -47,6 +53,11 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
                   index={index + 1}
                   isSelected={selectedItems.includes(item.id)}
                   onSelect={(isMultiSelect) => onSelectItem(item.id, isMultiSelect)}
+                  onRemove={() => onRemoveItem(item.id)}
+                  onMoveUp={() => onMoveUp(item.id)}
+                  onMoveDown={() => onMoveDown(item.id)}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < items.length - 1}
                 />
               ))
           )}
@@ -61,13 +72,23 @@ interface MainListItemProps {
   index: number;
   isSelected: boolean;
   onSelect: (isMultiSelect: boolean) => void;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }
 
 const MainListItemComponent: React.FC<MainListItemProps> = ({
   item,
   index,
   isSelected,
-  onSelect
+  onSelect,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown
 }) => {
   const handleClick = (e: React.MouseEvent) => {
     onSelect(e.ctrlKey || e.metaKey);
@@ -76,7 +97,7 @@ const MainListItemComponent: React.FC<MainListItemProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`p-3 border rounded-md cursor-pointer transition-colors ${
+      className={`group relative p-3 border rounded-md cursor-pointer transition-colors ${
         isSelected
           ? 'border-blue-500 bg-blue-50'
           : 'border-gray-200 bg-white hover:bg-gray-50'
@@ -103,6 +124,45 @@ const MainListItemComponent: React.FC<MainListItemProps> = ({
             </div>
           )}
         </div>
+        
+        {/* Action buttons */}
+        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 flex items-center space-x-1">
+          <div className="flex flex-col space-y-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+              disabled={!canMoveUp}
+              className={`w-6 h-4 flex items-center justify-center text-xs ${
+                canMoveUp 
+                  ? 'text-gray-600 hover:text-blue-600' 
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="Move up"
+            >
+              ↑
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+              disabled={!canMoveDown}
+              className={`w-6 h-4 flex items-center justify-center text-xs ${
+                canMoveDown 
+                  ? 'text-gray-600 hover:text-blue-600' 
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="Move down"
+            >
+              ↓
+            </button>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            className="w-6 h-6 flex items-center justify-center text-xs text-red-600 hover:text-red-700"
+            title="Remove from list"
+          >
+            🗑️
+          </button>
+        </div>
+        
+        {/* Drag handle */}
         <div className="flex-shrink-0">
           <div className="w-4 h-4 text-gray-400">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

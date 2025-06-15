@@ -146,6 +146,135 @@ function App() {
     console.log('Importing to list:', listId);
   };
 
+  // Input list item management
+  const handleAddItemToList = (listId: string, content: string) => {
+    if (!appState.currentProject) return;
+
+    const newItem: InputListItem = {
+      id: Date.now().toString(),
+      content,
+      isUsed: false
+    };
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === listId ? {
+            ...list,
+            items: [...list.items, newItem]
+          } : list
+        ),
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
+  const handleEditListItem = (listId: string, itemId: string, content: string) => {
+    if (!appState.currentProject) return;
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === listId ? {
+            ...list,
+            items: list.items.map(item =>
+              item.id === itemId ? { ...item, content } : item
+            )
+          } : list
+        ),
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
+  const handleDeleteListItem = (listId: string, itemId: string) => {
+    if (!appState.currentProject) return;
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === listId ? {
+            ...list,
+            items: list.items.filter(item => item.id !== itemId)
+          } : list
+        ),
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
+  const handleRenameList = (listId: string, newName: string) => {
+    if (!appState.currentProject) return;
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === listId ? { ...list, name: newName } : list
+        ),
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
+  const handleDeleteList = (listId: string) => {
+    if (!appState.currentProject) return;
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.filter(list => list.id !== listId),
+        modifiedAt: new Date()
+      } : null,
+      ui: {
+        ...prev.ui,
+        activeInputList: prev.ui.activeInputList === listId ? null : prev.ui.activeInputList
+      }
+    }));
+  };
+
+  const handleMoveToMainList = (listId: string, itemId: string) => {
+    if (!appState.currentProject) return;
+
+    const sourceList = appState.currentProject.inputLists.find(list => list.id === listId);
+    const sourceItem = sourceList?.items.find(item => item.id === itemId);
+    
+    if (!sourceItem || sourceItem.isUsed) return;
+
+    const newMainItem: MainListItem = {
+      id: Date.now().toString(),
+      content: sourceItem.content,
+      sourceListId: listId,
+      tags: [listId], // Add source list as a tag
+      order: appState.currentProject.mainList.length + 1
+    };
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === listId ? {
+            ...list,
+            items: list.items.map(item =>
+              item.id === itemId ? { ...item, isUsed: true } : item
+            )
+          } : list
+        ),
+        mainList: [...prev.currentProject.mainList, newMainItem],
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
   // Main list management
   const handleSelectMainItem = (itemId: string, isMultiSelect: boolean) => {
     setAppState(prev => {
@@ -170,9 +299,54 @@ function App() {
     });
   };
 
-  const handleReorderMainItems = (startIndex: number, endIndex: number) => {
-    // TODO: Implement drag-and-drop reordering
-    console.log('Reordering items:', startIndex, 'to', endIndex);
+  const handleRemoveFromMainList = (itemId: string) => {
+    if (!appState.currentProject) return;
+
+    const itemToRemove = appState.currentProject.mainList.find(item => item.id === itemId);
+    if (!itemToRemove) return;
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        mainList: prev.currentProject.mainList.filter(item => item.id !== itemId),
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === itemToRemove.sourceListId ? {
+            ...list,
+            items: list.items.map(item =>
+              item.content === itemToRemove.content ? { ...item, isUsed: false } : item
+            )
+          } : list
+        ),
+        modifiedAt: new Date()
+      } : null,
+      ui: {
+        ...prev.ui,
+        selectedItems: prev.ui.selectedItems.filter(id => id !== itemId)
+      }
+    }));
+  };
+
+  const handleReorderMainItems = (fromOrder: number, toOrder: number) => {
+    if (!appState.currentProject || fromOrder === toOrder) return;
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        mainList: prev.currentProject.mainList.map(item => {
+          if (item.order === fromOrder) {
+            return { ...item, order: toOrder };
+          } else if (fromOrder < toOrder && item.order > fromOrder && item.order <= toOrder) {
+            return { ...item, order: item.order - 1 };
+          } else if (fromOrder > toOrder && item.order >= toOrder && item.order < fromOrder) {
+            return { ...item, order: item.order + 1 };
+          }
+          return item;
+        }),
+        modifiedAt: new Date()
+      } : null
+    }));
   };
 
   // Tag management
@@ -269,7 +443,14 @@ function App() {
         onSelectInputList={handleSelectInputList}
         onAddInputList={handleAddInputList}
         onImportToList={handleImportToList}
+        onAddItemToList={handleAddItemToList}
+        onEditListItem={handleEditListItem}
+        onDeleteListItem={handleDeleteListItem}
+        onRenameList={handleRenameList}
+        onDeleteList={handleDeleteList}
+        onMoveToMainList={handleMoveToMainList}
         onSelectMainItem={handleSelectMainItem}
+        onRemoveFromMainList={handleRemoveFromMainList}
         onReorderMainItems={handleReorderMainItems}
         onAddTag={handleAddTag}
         onRemoveTag={handleRemoveTag}

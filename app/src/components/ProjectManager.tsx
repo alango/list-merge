@@ -15,8 +15,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
       <div className="flex items-center space-x-4">
         <h1 className="text-xl font-semibold text-gray-900">List Merge</h1>
-        {/* Tailwind test element */}
-        <div className="w-4 h-4 bg-red-500 rounded-full" title="Tailwind test - should be a red circle"></div>
         <div className="flex space-x-2">
           <button 
             onClick={onNewProject}
