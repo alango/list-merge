@@ -49,16 +49,20 @@
 
 ### 2.2 Specialized Components
 - **DraggableItem**: Reusable component for draggable list items with state management
-- **SelectableItem**: Component supporting multi-select functionality
+- **SelectableItem**: Component supporting multi-select functionality with SelectionManager integration
 - **DropZone**: Designated areas that accept dropped items
 - **TagChip**: Individual tag display component with drag capability
 - **TagEditor**: Interface for managing item tags
 - **FileImporter**: Handles file selection and parsing for supported formats
 - **ExportDialog**: Modal for export functionality
+- **UndoRedoControls**: Toolbar component with undo/redo buttons and keyboard shortcut handling
+- **BulkActionBar**: Context-sensitive toolbar for multi-select operations
+- **SelectionIndicator**: Visual feedback component for selection state and count
 
 ### 2.3 Component Hierarchy
 ```
 App
+├── UndoRedoControls
 ├── ProjectManager
 ├── Workspace
 │   ├── InputListPanel
@@ -68,7 +72,9 @@ App
 │   │   └── AddListButton
 │   ├── MainListPanel
 │   │   ├── DropZone
-│   │   └── SelectableItem[] (with multi-select)
+│   │   ├── SelectableItem[] (with multi-select)
+│   │   ├── SelectionIndicator
+│   │   └── BulkActionBar
 │   ├── PropertiesPanel
 │   │   ├── ItemDetails
 │   │   ├── TagEditor
@@ -82,17 +88,102 @@ App
 
 ## 3. State Management
 
+### 3.0 Undo/Redo System
+
+#### 3.0.1 Action History Management
+- **Command Pattern**: Each user action is encapsulated as a reversible command
+- **History Stack**: Maintain separate undo and redo stacks with configurable size limits
+- **Action Serialization**: Actions are serializable for potential persistence across sessions
+- **Automatic Cleanup**: Old actions are removed when history exceeds maximum size
+
+#### 3.0.2 Undoable Actions
+```typescript
+interface UndoableAction {
+  execute(): void;
+  undo(): void;
+  redo(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  merge(other: UndoableAction): UndoableAction | null; // For combining similar actions
+}
+
+// Examples of undoable actions:
+// - AddItemToMainListAction
+// - RemoveItemFromMainListAction
+// - ReorderMainListAction
+// - BulkTagOperationAction
+// - CreateInputListAction
+```
+
+#### 3.0.3 History Integration
+- **Keyboard Shortcuts**: Ctrl+Z (undo) and Ctrl+Y/Ctrl+Shift+Z (redo)
+- **UI Controls**: Undo/redo buttons with disabled states when not available
+- **Action Grouping**: Related actions can be grouped for single undo operation
+- **History Persistence**: Optional persistence of action history in localStorage
+
+### 3.1 Multi-Select System
+
+#### 3.1.1 Selection Manager Service
+```typescript
+class SelectionManager {
+  private state: SelectionManagerState;
+  
+  // Core selection methods
+  selectItem(itemId: string, mode: 'single' | 'toggle' | 'range'): void;
+  selectAll(listType: 'main-list' | 'input-list'): void;
+  clearSelection(): void;
+  
+  // Selection queries
+  getSelectedItems(): string[];
+  isSelected(itemId: string): boolean;
+  getSelectionCount(): number;
+  
+  // Bulk operations
+  applyBulkOperation(operation: BulkOperation): void;
+  canApplyBulkOperation(operation: BulkOperation): boolean;
+}
+```
+
+#### 3.1.2 Selection Modes
+- **Single Select**: Click to select single item
+- **Multi-Select Toggle**: Ctrl+Click to toggle individual items
+- **Range Select**: Shift+Click to select range from anchor to clicked item
+- **Select All**: Ctrl+A to select all items in current context
+- **Lasso Select**: Optional drag-to-select multiple items
+
+#### 3.1.3 Visual Selection Feedback
+- **Selected State**: Visual highlight for selected items
+- **Selection Count**: Display count of selected items
+- **Bulk Action Bar**: Context-sensitive toolbar for bulk operations
+- **Multi-Select Indicators**: Visual cues when in multi-select mode
+
 ### 3.1 Global State Structure
 ```typescript
 interface AppState {
   currentProject: Project | null;
   savedProjects: ProjectSummary[];
   tagPool: Tag[];
+  actionHistory: ActionHistoryState;
   ui: {
     selectedItems: string[];
     activeInputList: string | null;
     dragState: DragState;
+    selectionManager: SelectionManagerState;
   };
+}
+
+interface ActionHistoryState {
+  undoStack: Action[];
+  redoStack: Action[];
+  maxHistorySize: number; // Default: 50
+}
+
+interface SelectionManagerState {
+  selectedItems: string[];
+  isMultiSelectMode: boolean;
+  selectionType: 'main-list' | 'input-list' | null;
+  lastSelectedItem: string | null;
+  anchorItem: string | null; // For shift-click selection
 }
 
 interface Project {
@@ -129,6 +220,26 @@ interface Tag {
   name: string;
   color?: string;
 }
+
+interface Action {
+  id: string;
+  type: ActionType;
+  timestamp: Date;
+  data: any;
+  description: string;
+}
+
+type ActionType = 
+  | 'ADD_ITEM_TO_MAIN_LIST'
+  | 'REMOVE_ITEM_FROM_MAIN_LIST'
+  | 'REORDER_MAIN_LIST'
+  | 'ADD_TAG_TO_ITEM'
+  | 'REMOVE_TAG_FROM_ITEM'
+  | 'BULK_TAG_OPERATION'
+  | 'CREATE_INPUT_LIST'
+  | 'DELETE_INPUT_LIST'
+  | 'RENAME_INPUT_LIST'
+  | 'IMPORT_ITEMS';
 ```
 
 ### 3.2 State Management Pattern
@@ -136,6 +247,8 @@ interface Tag {
 - **Reducer Pattern**: Complex state updates handled by reducers
 - **Local State**: Component-level state for UI-only concerns
 - **Derived State**: Computed values using useMemo for performance
+- **Action History**: Command pattern for undo/redo functionality
+- **Selection Manager**: Centralized multi-select state management
 
 ## 4. Data Flow and Storage
 
@@ -193,10 +306,11 @@ interface DragData {
   isUsed?: boolean; // For input items
 }
 
-// Multi-select support for bulk operations
-interface MultiSelectState {
-  selectedItems: string[];
-  isMultiSelectMode: boolean;
+// Multi-select support for bulk operations integrated with SelectionManager
+interface BulkOperation {
+  type: 'ADD_TAGS' | 'REMOVE_TAGS' | 'DELETE_ITEMS' | 'REORDER_ITEMS';
+  itemIds: string[];
+  data: any;
 }
 ```
 
