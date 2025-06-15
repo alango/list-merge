@@ -29,11 +29,14 @@ List Merge is a web-based application that allows users to merge multiple input 
 
 ### 2.4 Tagging System
 - **Source Tags**: Automatically applied tags showing which input list each item originated from
-- **Custom Tags**: Users can create and manage freeform text tags
+- **Custom Tags**: Users can create and manage freeform text tags with customizable colors
 - **Tag Pool**: Dedicated area displaying all created tags that can be dragged onto items
 - **Tag Assignment**: Tags can be applied by dragging from tag pool to items or through the properties panel
 - **Multi-Select Tagging**: Users can select multiple items and apply tags to all selected items simultaneously
-- **Visual Tag Display**: Tags are visually distinct and clearly labeled on items
+- **Visual Tag Display**: Tags are visually distinct with customizable colors and clearly labeled on items
+- **Duplicate Prevention**: System prevents creation of duplicate tag names within a project
+- **Auto-Suggestion**: When adding tags to items, existing tags are suggested with autocomplete functionality
+- **Tag Color Customization**: Users can assign custom colors to tags for better visual organization
 
 ### 2.5 Import and Export Functionality
 - **Import Formats**: 
@@ -104,17 +107,23 @@ List Merge is a web-based application that allows users to merge multiple input 
    - Using the properties panel for individual items
 
 ### 4.4 Tag Management Workflow
-1. User creates new tags in the tag pool panel
-2. Tags can be applied to items by:
+1. User creates new tags in the tag pool panel with duplicate name validation and color selection
+2. User can customize tag colors during creation or later through tag management interface
+3. Tags can be applied to items by:
    - Dragging tags from pool to individual items
    - Selecting multiple items and choosing tags for bulk application
-   - Using the properties panel for detailed tag management
-3. System maintains a master list of all created tags for reuse
-4. Tags can be edited or deleted from the tag pool### 3.5 Tag Pool Panel
-- **Available Tags**: Display of all created tags in the project
-- **Create New Tag**: Interface for adding new freeform text tags
+   - Using the properties panel with autocomplete suggestions of existing tags
+   - Typing tag names with auto-suggestion dropdown showing matching existing tags
+4. System maintains a master list of all created tags for reuse and prevents duplicates
+5. Tags can be edited (name and color) or deleted from the tag pool
+6. When typing new tag names, system provides real-time suggestions from existing tags
+
+### 3.5 Tag Pool Panel
+- **Available Tags**: Display of all created tags in the project with their custom colors
+- **Create New Tag**: Interface for adding new freeform text tags with color picker and duplicate validation
 - **Drag Source**: Tags can be dragged from this panel onto items in the main list
-- **Tag Management**: Edit and delete existing tags
+- **Tag Management**: Edit tag names and colors, delete existing tags with confirmation
+- **Visual Organization**: Tags displayed with their assigned colors for easy identification
 - **Multi-Select Actions**: Controls for applying tags to multiple selected items# List Merge -
 
 ### 4.5 Finalizing and Exporting
