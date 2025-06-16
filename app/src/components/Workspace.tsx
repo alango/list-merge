@@ -27,7 +27,6 @@ interface WorkspaceProps {
   onApplyTagToSelected: (tagId: string) => void;
   onRemoveAllTags: () => void;
   onClearSelection: () => void;
-  onReplaceAllTags: (tagId: string) => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
@@ -51,8 +50,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   onDeleteTag,
   onApplyTagToSelected,
   onRemoveAllTags,
-  onClearSelection,
-  onReplaceAllTags
+  onClearSelection
 }) => {
   const currentProject = appState.currentProject;
   const selectedMainItems = currentProject?.mainList.filter(item => 
@@ -136,7 +134,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           onApplyTagToSelected={onApplyTagToSelected}
           onRemoveAllTags={onRemoveAllTags}
           onClearSelection={onClearSelection}
-          onReplaceAllTags={onReplaceAllTags}
         />
       </div>
     </div>

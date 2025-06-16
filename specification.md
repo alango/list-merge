@@ -37,6 +37,9 @@ List Merge is a web-based application that allows users to merge multiple input 
 - **Duplicate Prevention**: System prevents creation of duplicate tag names within a project
 - **Auto-Suggestion**: When adding tags to items, existing tags are suggested with autocomplete functionality
 - **Tag Color Customization**: Users can assign custom colors to tags for better visual organization
+- **Tag Editing**: Tags can be edited (name and color) with automatic updates to all items using those tags
+- **Hover Actions**: Edit and delete actions appear on hover for each tag in the tag pool
+- **Inline Editing**: Tags can be edited directly in the tag pool using an inline form with keyboard shortcuts
 
 ### 2.5 Import and Export Functionality
 - **Import Formats**: 
@@ -115,16 +118,22 @@ List Merge is a web-based application that allows users to merge multiple input 
    - Using the properties panel with autocomplete suggestions of existing tags
    - Typing tag names with auto-suggestion dropdown showing matching existing tags
 4. System maintains a master list of all created tags for reuse and prevents duplicates
-5. Tags can be edited (name and color) or deleted from the tag pool
+5. Tags can be edited (name and color) or deleted from the tag pool using hover actions:
+   - Hover over any tag in the tag pool to reveal edit and delete icons
+   - Click edit icon to enter inline editing mode with name input and color picker
+   - Use Enter to save changes or Escape to cancel editing
+   - All items using the edited tag are automatically updated with new name/color
 6. When typing new tag names, system provides real-time suggestions from existing tags
 
 ### 3.5 Tag Pool Panel
 - **Available Tags**: Display of all created tags in the project with their custom colors
 - **Create New Tag**: Interface for adding new freeform text tags with color picker and duplicate validation
 - **Drag Source**: Tags can be dragged from this panel onto items in the main list
-- **Tag Management**: Edit tag names and colors, delete existing tags with confirmation
+- **Tag Management**: Edit tag names and colors with hover actions, delete existing tags with confirmation
+- **Inline Editing**: Click edit icon on tag hover to access inline editing form with name input and color picker
 - **Visual Organization**: Tags displayed with their assigned colors for easy identification
-- **Multi-Select Actions**: Controls for applying tags to multiple selected items# List Merge -
+- **Multi-Select Actions**: Controls for applying tags to multiple selected items
+- **Usage Indicators**: Tags show usage count to indicate how many items are using each tag# List Merge -
 
 ### 4.5 Finalizing and Exporting
 1. User reviews the completed main list

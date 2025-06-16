@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Tag } from '../types/index';
 
@@ -19,7 +19,6 @@ interface TagPoolPanelProps {
   onApplyTagToSelected: (tagId: string) => void;
   onRemoveAllTags: () => void;
   onClearSelection: () => void;
-  onReplaceAllTags: (tagId: string) => void;
 }
 
 export const TagPoolPanel: React.FC<TagPoolPanelProps> = ({
@@ -30,8 +29,7 @@ export const TagPoolPanel: React.FC<TagPoolPanelProps> = ({
   onDeleteTag,
   onApplyTagToSelected,
   onRemoveAllTags,
-  onClearSelection,
-  onReplaceAllTags
+  onClearSelection
 }) => {
   // Predefined color palette
   const defaultColors = [
@@ -176,7 +174,6 @@ export const TagPoolPanel: React.FC<TagPoolPanelProps> = ({
                   onClick={() => selectedItemCount > 0 && onApplyTagToSelected(tag.id)}
                   onEdit={(name, color) => onEditTag(tag.id, name, color)}
                   onDelete={() => onDeleteTag(tag.id)}
-                  onRightClick={() => selectedItemCount > 0 && onReplaceAllTags(tag.id)}
                 />
               ))}
             </div>
@@ -202,9 +199,6 @@ export const TagPoolPanel: React.FC<TagPoolPanelProps> = ({
                   Clear Selection
                 </button>
               </div>
-              <div className="text-xs text-gray-600">
-                Right-click any tag to replace all tags with that tag
-              </div>
             </div>
           </div>
         )}
@@ -219,10 +213,20 @@ interface TagChipProps {
   onClick: () => void;
   onEdit: (name: string, color: string) => void;
   onDelete: () => void;
-  onRightClick: () => void;
 }
 
-const TagChip: React.FC<TagChipProps> = ({ tag, isClickable, onClick, onEdit, onDelete, onRightClick }) => {
+const TagChip: React.FC<TagChipProps> = ({ tag, isClickable, onClick, onEdit, onDelete }) => {
+  // Predefined color palette (same as in TagPoolPanel)
+  const defaultColors = [
+    '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6',
+    '#8b5cf6', '#ec4899', '#6b7280', '#059669', '#dc2626', '#7c3aed'
+  ];
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(tag.name);
+  const [editColor, setEditColor] = useState(tag.color);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const dragData: TagDragData = {
     type: 'tag',
     tagId: tag.id,
@@ -238,7 +242,8 @@ const TagChip: React.FC<TagChipProps> = ({ tag, isClickable, onClick, onEdit, on
     transform
   } = useDraggable({
     id: `tag-${tag.id}`,
-    data: dragData
+    data: dragData,
+    disabled: isEditing // Disable dragging while editing
   });
 
   const style = transform ? {
@@ -253,34 +258,175 @@ const TagChip: React.FC<TagChipProps> = ({ tag, isClickable, onClick, onEdit, on
     borderColor: tag.color + '40'
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isClickable) {
-      onRightClick();
+  // Focus input when entering edit mode
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleStartEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditName(tag.name);
+    setEditColor(tag.color);
+  };
+
+  const handleSaveEdit = () => {
+    if (editName.trim()) {
+      onEdit(editName.trim(), editColor);
+      setIsEditing(false);
     }
   };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditName(tag.name);
+    setEditColor(tag.color);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete();
+  };
+
+  if (isEditing) {
+    return (
+      <>
+        {/* Tag placeholder to maintain layout */}
+        <div
+          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border opacity-50"
+          style={chipStyle}
+        >
+          <span className="truncate max-w-24 select-none">{tag.name}</span>
+          {tag.usageCount > 0 && (
+            <span className="ml-1 text-xs opacity-60 select-none">({tag.usageCount})</span>
+          )}
+        </div>
+        
+        {/* Modal overlay */}
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Edit Tag</h3>
+            
+            {/* Name input */}
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+              <input
+                ref={inputRef}
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Tag name..."
+              />
+            </div>
+            
+            {/* Color picker */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-2">Color</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {defaultColors.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setEditColor(color)}
+                    className={`w-6 h-6 rounded border-2 ${
+                      editColor === color ? 'border-gray-800' : 'border-gray-300'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+              <input
+                type="color"
+                value={editColor}
+                onChange={(e) => setEditColor(e.target.value)}
+                className="w-full h-8 rounded border border-gray-300"
+                title="Custom color"
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={handleCancelEdit}
+                className="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                disabled={!editName.trim()}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={chipStyle}
       onClick={isClickable ? onClick : undefined}
-      onContextMenu={handleContextMenu}
-      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+      className={`group inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border relative ${
         isClickable 
           ? 'cursor-pointer hover:opacity-80' 
           : isDragging
           ? 'cursor-grabbing'
           : 'cursor-grab'
       }`}
-      {...attributes}
-      {...listeners}
+      {...(isEditing ? {} : { ...attributes, ...listeners })}
     >
       <span className="truncate max-w-24 select-none">{tag.name}</span>
       {tag.usageCount > 0 && (
         <span className="ml-1 text-xs opacity-60 select-none">({tag.usageCount})</span>
       )}
-      {/* Edit/delete buttons would be shown on hover or in edit mode */}
+      
+      {/* Hover actions */}
+      <div 
+        className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1 z-10"
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={handleStartEdit}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center text-gray-600 hover:text-blue-600 shadow-md hover:shadow-lg"
+          title="Edit tag"
+        >
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+        </button>
+        <button
+          onClick={handleDeleteClick}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center text-gray-600 hover:text-red-600 shadow-md hover:shadow-lg"
+          title="Delete tag"
+        >
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };

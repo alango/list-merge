@@ -612,26 +612,6 @@ function App() {
     }));
   };
 
-  const handleReplaceAllTags = (tagId: string) => {
-    if (appState.ui.selectedItems.length === 0) return;
-
-    setAppState(prev => ({
-      ...prev,
-      currentProject: prev.currentProject ? {
-        ...prev.currentProject,
-        mainList: prev.currentProject.mainList.map(item =>
-          prev.ui.selectedItems.includes(item.id) ? {
-            ...item,
-            tags: [tagId]
-          } : item
-        ),
-        modifiedAt: new Date()
-      } : null,
-      tagPool: prev.tagPool.map(tag =>
-        tag.id === tagId ? { ...tag, usageCount: tag.usageCount + prev.ui.selectedItems.length } : tag
-      )
-    }));
-  };
 
   // Drag and drop handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -899,7 +879,6 @@ function App() {
           onApplyTagToSelected={handleApplyTagToSelected}
           onRemoveAllTags={handleRemoveAllTags}
           onClearSelection={handleClearSelection}
-          onReplaceAllTags={handleReplaceAllTags}
         />
         <DragOverlay>
           <DragOverlayComponent />
