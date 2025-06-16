@@ -1,5 +1,131 @@
 import React from 'react';
-import type { InputList } from '../types/index';
+import { useDraggable } from '@dnd-kit/core';
+import type { InputList, InputListItem } from '../types/index';
+
+// Drag data interface
+interface DragData {
+  type: 'input-item';
+  itemId: string;
+  sourceListId: string;
+  content: string;
+}
+
+// Draggable item component
+interface DraggableInputItemProps {
+  item: InputListItem;
+  listId: string;
+  isEditing: boolean;
+  editingContent: string;
+  onStartEdit: (item: InputListItem) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onEditContentChange: (content: string) => void;
+  onKeyPress: (e: React.KeyboardEvent, action: () => void) => void;
+  onMoveToMain: (itemId: string) => void;
+  onDeleteItem: (itemId: string) => void;
+}
+
+const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
+  item,
+  listId,
+  isEditing,
+  editingContent,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onEditContentChange,
+  onKeyPress,
+  onMoveToMain,
+  onDeleteItem
+}) => {
+  const dragData: DragData = {
+    type: 'input-item',
+    itemId: item.id,
+    sourceListId: listId,
+    content: item.content
+  };
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    isDragging,
+    transform
+  } = useDraggable({
+    id: item.id,
+    data: dragData,
+    disabled: item.isUsed || isEditing
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    opacity: isDragging ? 0.5 : 1,
+  } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative p-3 border border-gray-200 rounded-md ${
+        item.isUsed 
+          ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
+          : isDragging
+          ? 'bg-blue-50 border-blue-300'
+          : 'bg-white hover:bg-gray-50 cursor-grab active:cursor-grabbing'
+      }`}
+      {...(item.isUsed || isEditing ? {} : { ...attributes, ...listeners })}
+    >
+      {isEditing ? (
+        <div className="flex space-x-2">
+          <input
+            type="text"
+            value={editingContent}
+            onChange={(e) => onEditContentChange(e.target.value)}
+            onKeyDown={(e) => onKeyPress(e, onSaveEdit)}
+            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            autoFocus
+          />
+          <button onClick={onSaveEdit} className="text-xs text-green-600">Save</button>
+          <button onClick={onCancelEdit} className="text-xs text-gray-500">Cancel</button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <span className="flex-1 select-none">{item.content}</span>
+          <div className="opacity-0 group-hover:opacity-100 flex space-x-1 ml-2">
+            {!item.isUsed && (
+              <button
+                onClick={() => onMoveToMain(item.id)}
+                className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded"
+                title="Move to main list"
+              >
+                →
+              </button>
+            )}
+            <button
+              onClick={() => onStartEdit(item)}
+              className="text-xs text-gray-600 hover:text-gray-700 px-2 py-1 rounded"
+              title="Edit item"
+            >
+              ✏️
+            </button>
+            <button
+              onClick={() => onDeleteItem(item.id)}
+              className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded"
+              title="Delete item"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      )}
+      {item.isUsed && (
+        <div className="absolute top-1 right-1 text-xs text-gray-400 bg-gray-100 px-1 rounded">
+          Used
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface InputListPanelProps {
   inputLists: InputList[];
@@ -228,58 +354,20 @@ const InputListContent: React.FC<InputListContentProps> = ({
           </div>
         ) : (
           list.items.map((item) => (
-            <div
+            <DraggableInputItem
               key={item.id}
-              className={`group relative p-3 border border-gray-200 rounded-md ${
-                item.isUsed 
-                  ? 'bg-gray-50 text-gray-400' 
-                  : 'bg-white hover:bg-gray-50'
-              }`}
-            >
-              {editingItemId === item.id ? (
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={editingContent}
-                    onChange={(e) => setEditingContent(e.target.value)}
-                    onKeyDown={(e) => handleKeyPress(e, handleSaveEdit)}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    autoFocus
-                  />
-                  <button onClick={handleSaveEdit} className="text-xs text-green-600">Save</button>
-                  <button onClick={handleCancelEdit} className="text-xs text-gray-500">Cancel</button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span className="flex-1">{item.content}</span>
-                  <div className="opacity-0 group-hover:opacity-100 flex space-x-1 ml-2">
-                    {!item.isUsed && (
-                      <button
-                        onClick={() => onMoveToMain(item.id)}
-                        className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded"
-                        title="Move to main list"
-                      >
-                        →
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleStartEdit(item)}
-                      className="text-xs text-gray-600 hover:text-gray-700 px-2 py-1 rounded"
-                      title="Edit item"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => onDeleteItem(item.id)}
-                      className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded"
-                      title="Delete item"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              item={item}
+              listId={list.id}
+              isEditing={editingItemId === item.id}
+              editingContent={editingContent}
+              onStartEdit={handleStartEdit}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+              onEditContentChange={setEditingContent}
+              onKeyPress={handleKeyPress}
+              onMoveToMain={onMoveToMain}
+              onDeleteItem={onDeleteItem}
+            />
           ))
         )}
       </div>

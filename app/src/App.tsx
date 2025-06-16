@@ -1,8 +1,26 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { DndContext, DragOverlay } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
 import { ProjectManager } from './components/ProjectManager';
 import { Workspace } from './components/Workspace';
-import type { AppState, Project, InputList, MainListItem, Tag } from './types/index';
+import type { AppState, Project, InputList, MainListItem, Tag, InputListItem } from './types/index';
 import './App.css';
+
+// Drag and drop data interfaces
+interface DragData {
+  type: 'input-item' | 'main-item' | 'tag';
+  itemId: string;
+  sourceListId?: string;
+  content: string;
+  isMultiSelect?: boolean;
+  selectedItems?: string[];
+}
+
+interface DropData {
+  type: 'main-list' | 'main-list-position';
+  listId?: string;
+  position?: number;
+}
 
 // Mock data for initial development
 const createMockProject = (): Project => ({
@@ -84,6 +102,9 @@ function App() {
       activeInputList: 'list1'
     }
   });
+
+  // Drag overlay state
+  const [activeDragData, setActiveDragData] = useState<DragData | null>(null);
 
   // Project management handlers
   const handleNewProject = () => {
@@ -430,6 +451,211 @@ function App() {
     }
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const dragData = active.data.current as DragData;
+    
+    setActiveDragData(dragData);
+    console.log('Drag started:', dragData);
+    
+    // If dragging a selected item and there are multiple selected items,
+    // prepare for multi-select drag
+    if (dragData.type === 'main-item' && appState.ui.selectedItems.includes(dragData.itemId)) {
+      // Multi-select drag will be handled in drag end
+    }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    // Handle visual feedback during drag over
+    console.log('Drag over:', event);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    setActiveDragData(null);
+    
+    if (!over) {
+      console.log('Drag cancelled - no drop target');
+      return;
+    }
+
+    const dragData = active.data.current as DragData;
+    const dropData = over.data.current as DropData;
+
+    console.log('Drag ended:', { dragData, dropData });
+
+    // Handle different drag operations
+    if (dragData.type === 'input-item' && dropData.type === 'main-list') {
+      // Moving from input list to main list
+      handleMoveToMainList(dragData.sourceListId!, dragData.itemId);
+    } else if (dragData.type === 'input-item' && dropData.type === 'main-list-position') {
+      // Moving from input list to specific position in main list
+      handleMoveToMainListAtPosition(dragData.sourceListId!, dragData.itemId, dropData.position!);
+    } else if (dragData.type === 'main-item' && dropData.type === 'main-list-position') {
+      // Reordering within main list
+      if (appState.ui.selectedItems.includes(dragData.itemId) && appState.ui.selectedItems.length > 1) {
+        // Multi-select reorder
+        handleReorderMultipleItems(appState.ui.selectedItems, dropData.position!);
+      } else {
+        // Single item reorder
+        handleReorderMainItemToPosition(dragData.itemId, dropData.position!);
+      }
+    }
+  };
+
+  // Helper function to move item to specific position in main list
+  const handleMoveToMainListAtPosition = (sourceListId: string, itemId: string, position: number) => {
+    if (!appState.currentProject) return;
+
+    const sourceList = appState.currentProject.inputLists.find(list => list.id === sourceListId);
+    const sourceItem = sourceList?.items.find(item => item.id === itemId);
+    
+    if (!sourceItem || sourceItem.isUsed) return;
+
+    const newMainItem: MainListItem = {
+      id: Date.now().toString(),
+      content: sourceItem.content,
+      sourceListId: sourceListId,
+      tags: [sourceListId], // Add source list as a tag
+      order: position
+    };
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === sourceListId ? {
+            ...list,
+            items: list.items.map(item =>
+              item.id === itemId ? { ...item, isUsed: true } : item
+            )
+          } : list
+        ),
+        mainList: [
+          ...prev.currentProject.mainList.filter(item => item.order < position),
+          newMainItem,
+          ...prev.currentProject.mainList.filter(item => item.order >= position).map(item => ({
+            ...item,
+            order: item.order + 1
+          }))
+        ],
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
+  // Helper function to reorder single item to specific position
+  const handleReorderMainItemToPosition = (itemId: string, newPosition: number) => {
+    if (!appState.currentProject) return;
+
+    const item = appState.currentProject.mainList.find(item => item.id === itemId);
+    if (!item) return;
+
+    const oldPosition = item.order;
+    if (oldPosition === newPosition) return;
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        mainList: prev.currentProject.mainList.map(listItem => {
+          if (listItem.id === itemId) {
+            return { ...listItem, order: newPosition };
+          }
+          
+          // Adjust other items' positions
+          if (oldPosition < newPosition) {
+            // Moving down - shift items up
+            if (listItem.order > oldPosition && listItem.order <= newPosition) {
+              return { ...listItem, order: listItem.order - 1 };
+            }
+          } else {
+            // Moving up - shift items down
+            if (listItem.order >= newPosition && listItem.order < oldPosition) {
+              return { ...listItem, order: listItem.order + 1 };
+            }
+          }
+          
+          return listItem;
+        }),
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
+  // Helper function to reorder multiple selected items
+  const handleReorderMultipleItems = (selectedItemIds: string[], newPosition: number) => {
+    if (!appState.currentProject) return;
+
+    const selectedItems = appState.currentProject.mainList.filter(item => 
+      selectedItemIds.includes(item.id)
+    ).sort((a, b) => a.order - b.order);
+
+    if (selectedItems.length === 0) return;
+
+    // Remove selected items and adjust remaining items' positions
+    const remainingItems = appState.currentProject.mainList.filter(item => 
+      !selectedItemIds.includes(item.id)
+    );
+
+    // Insert selected items at new position
+    const newMainList: MainListItem[] = [];
+    let currentOrder = 1;
+
+    for (const item of remainingItems) {
+      if (currentOrder === newPosition) {
+        // Insert selected items here
+        for (const selectedItem of selectedItems) {
+          newMainList.push({ ...selectedItem, order: currentOrder++ });
+        }
+      }
+      newMainList.push({ ...item, order: currentOrder++ });
+    }
+
+    // If position is at the end, add selected items at the end
+    if (newPosition > remainingItems.length) {
+      for (const selectedItem of selectedItems) {
+        newMainList.push({ ...selectedItem, order: currentOrder++ });
+      }
+    }
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        mainList: newMainList,
+        modifiedAt: new Date()
+      } : null
+    }));
+  };
+
+  // Drag overlay component
+  const DragOverlayComponent = () => {
+    if (!activeDragData) return null;
+
+    const isMultiSelect = activeDragData.type === 'main-item' && 
+      appState.ui.selectedItems.includes(activeDragData.itemId) && 
+      appState.ui.selectedItems.length > 1;
+
+    return (
+      <div className="bg-white border border-gray-300 rounded-md shadow-lg p-3 cursor-grabbing">
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium text-gray-900">
+            {activeDragData.content}
+          </span>
+          {isMultiSelect && (
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              +{appState.ui.selectedItems.length - 1} more
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <ProjectManager
@@ -438,27 +664,36 @@ function App() {
         onSaveProject={handleSaveProject}
       />
       
-      <Workspace
-        appState={appState}
-        onSelectInputList={handleSelectInputList}
-        onAddInputList={handleAddInputList}
-        onImportToList={handleImportToList}
-        onAddItemToList={handleAddItemToList}
-        onEditListItem={handleEditListItem}
-        onDeleteListItem={handleDeleteListItem}
-        onRenameList={handleRenameList}
-        onDeleteList={handleDeleteList}
-        onMoveToMainList={handleMoveToMainList}
-        onSelectMainItem={handleSelectMainItem}
-        onRemoveFromMainList={handleRemoveFromMainList}
-        onReorderMainItems={handleReorderMainItems}
-        onAddTag={handleAddTag}
-        onRemoveTag={handleRemoveTag}
-        onCreateTag={handleCreateTag}
-        onEditTag={handleEditTag}
-        onDeleteTag={handleDeleteTag}
-        onApplyTagToSelected={handleApplyTagToSelected}
-      />
+      <DndContext
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <Workspace
+          appState={appState}
+          onSelectInputList={handleSelectInputList}
+          onAddInputList={handleAddInputList}
+          onImportToList={handleImportToList}
+          onAddItemToList={handleAddItemToList}
+          onEditListItem={handleEditListItem}
+          onDeleteListItem={handleDeleteListItem}
+          onRenameList={handleRenameList}
+          onDeleteList={handleDeleteList}
+          onMoveToMainList={handleMoveToMainList}
+          onSelectMainItem={handleSelectMainItem}
+          onRemoveFromMainList={handleRemoveFromMainList}
+          onReorderMainItems={handleReorderMainItems}
+          onAddTag={handleAddTag}
+          onRemoveTag={handleRemoveTag}
+          onCreateTag={handleCreateTag}
+          onEditTag={handleEditTag}
+          onDeleteTag={handleDeleteTag}
+          onApplyTagToSelected={handleApplyTagToSelected}
+        />
+        <DragOverlay>
+          <DragOverlayComponent />
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }

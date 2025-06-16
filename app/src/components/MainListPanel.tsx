@@ -1,5 +1,57 @@
 import React from 'react';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import type { MainListItem } from '../types/index';
+
+// Drop data interface
+interface DropData {
+  type: 'main-list-position';
+  position: number;
+}
+
+// Drag data interface  
+interface DragData {
+  type: 'main-item';
+  itemId: string;
+  content: string;
+}
+
+// Drop zone component for positioning
+interface DropZoneProps {
+  position: number;
+  isFirst?: boolean;
+  isLast?: boolean;
+}
+
+const DropZone: React.FC<DropZoneProps> = ({ position, isFirst = false, isLast = false }) => {
+  const dropData: DropData = {
+    type: 'main-list-position',
+    position
+  };
+
+  const { isOver, setNodeRef } = useDroppable({
+    id: `drop-zone-${position}`,
+    data: dropData
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`transition-all duration-200 ${
+        isOver 
+          ? 'h-12 bg-blue-100 border-2 border-dashed border-blue-400 rounded-lg'
+          : isFirst || isLast
+          ? 'h-6 border-2 border-dashed border-transparent hover:border-gray-300 rounded-lg'
+          : 'h-3 border-2 border-dashed border-transparent hover:border-gray-300 rounded-lg'
+      }`}
+    >
+      {isOver && (
+        <div className="h-full flex items-center justify-center">
+          <span className="text-sm text-blue-600 font-medium">Drop here</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface MainListPanelProps {
   items: MainListItem[];
@@ -32,34 +84,46 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
       </div>
       
       <div className="flex-1 panel-content">
-        {/* Drop zone indicator */}
-        <div className="mb-4 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-500">
-          Drop items here to add them to your ranked list
-        </div>
+        {/* General drop zone for empty list */}
+        {items.length === 0 && (
+          <DropZone position={1} isFirst={true} />
+        )}
         
-        {/* Main list items */}
-        <div className="space-y-2 overflow-y-auto">
+        {/* Main list items with drop zones */}
+        <div className="overflow-y-auto">
           {items.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               Your ranked list is empty. Drag items from the input lists to get started.
             </div>
           ) : (
-            items
-              .sort((a, b) => a.order - b.order)
-              .map((item, index) => (
-                <MainListItemComponent
-                  key={item.id}
-                  item={item}
-                  index={index + 1}
-                  isSelected={selectedItems.includes(item.id)}
-                  onSelect={(isMultiSelect) => onSelectItem(item.id, isMultiSelect)}
-                  onRemove={() => onRemoveItem(item.id)}
-                  onMoveUp={() => onMoveUp(item.id)}
-                  onMoveDown={() => onMoveDown(item.id)}
-                  canMoveUp={index > 0}
-                  canMoveDown={index < items.length - 1}
-                />
-              ))
+            <div className="space-y-1">
+              {/* Drop zone at the beginning */}
+              <DropZone position={1} isFirst={true} />
+              
+              {items
+                .sort((a, b) => a.order - b.order)
+                .map((item, index) => (
+                  <React.Fragment key={item.id}>
+                    <DraggableMainListItem
+                      item={item}
+                      index={index + 1}
+                      isSelected={selectedItems.includes(item.id)}
+                      onSelect={(isMultiSelect) => onSelectItem(item.id, isMultiSelect)}
+                      onRemove={() => onRemoveItem(item.id)}
+                      onMoveUp={() => onMoveUp(item.id)}
+                      onMoveDown={() => onMoveDown(item.id)}
+                      canMoveUp={index > 0}
+                      canMoveDown={index < items.length - 1}
+                    />
+                    {/* Drop zone after each item */}
+                    <DropZone 
+                      position={index + 2} 
+                      isLast={index === items.length - 1}
+                    />
+                  </React.Fragment>
+                ))
+              }
+            </div>
           )}
         </div>
       </div>
@@ -79,7 +143,7 @@ interface MainListItemProps {
   canMoveDown: boolean;
 }
 
-const MainListItemComponent: React.FC<MainListItemProps> = ({
+const DraggableMainListItem: React.FC<MainListItemProps> = ({
   item,
   index,
   isSelected,
@@ -90,16 +154,42 @@ const MainListItemComponent: React.FC<MainListItemProps> = ({
   canMoveUp,
   canMoveDown
 }) => {
+  const dragData: DragData = {
+    type: 'main-item',
+    itemId: item.id,
+    content: item.content
+  };
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    isDragging,
+    transform
+  } = useDraggable({
+    id: `main-item-${item.id}`,
+    data: dragData
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    opacity: isDragging ? 0.5 : 1,
+  } : undefined;
+
   const handleClick = (e: React.MouseEvent) => {
     onSelect(e.ctrlKey || e.metaKey);
   };
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       onClick={handleClick}
       className={`group relative p-3 border rounded-md cursor-pointer transition-colors ${
         isSelected
           ? 'border-blue-500 bg-blue-50'
+          : isDragging
+          ? 'border-blue-300 bg-blue-50'
           : 'border-gray-200 bg-white hover:bg-gray-50'
       }`}
     >
@@ -108,7 +198,7 @@ const MainListItemComponent: React.FC<MainListItemProps> = ({
           {index}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate">
+          <div className="text-sm font-medium text-gray-900 truncate select-none">
             {item.content}
           </div>
           {item.tags.length > 0 && (
@@ -163,8 +253,12 @@ const MainListItemComponent: React.FC<MainListItemProps> = ({
         </div>
         
         {/* Drag handle */}
-        <div className="flex-shrink-0">
-          <div className="w-4 h-4 text-gray-400">
+        <div 
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <div className="w-4 h-4 text-gray-400 hover:text-gray-600">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
             </svg>
