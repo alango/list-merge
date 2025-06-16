@@ -1,11 +1,12 @@
 import React from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
-import type { MainListItem } from '../types/index';
+import type { MainListItem, Tag } from '../types/index';
 
 // Drop data interface
 interface DropData {
-  type: 'main-list-position';
-  position: number;
+  type: 'main-list-position' | 'main-list-item';
+  position?: number;
+  itemId?: string;
 }
 
 // Drag data interface  
@@ -56,6 +57,7 @@ const DropZone: React.FC<DropZoneProps> = ({ position, isFirst = false, isLast =
 interface MainListPanelProps {
   items: MainListItem[];
   selectedItems: string[];
+  tagPool: Tag[];
   onSelectItem: (itemId: string, isMultiSelect: boolean) => void;
   onRemoveItem: (itemId: string) => void;
   onReorderItems: (startIndex: number, endIndex: number) => void;
@@ -66,6 +68,7 @@ interface MainListPanelProps {
 export const MainListPanel: React.FC<MainListPanelProps> = ({
   items,
   selectedItems,
+  tagPool,
   onSelectItem,
   onRemoveItem,
   onReorderItems,
@@ -107,6 +110,7 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
                     <DraggableMainListItem
                       item={item}
                       index={index + 1}
+                      tagPool={tagPool}
                       isSelected={selectedItems.includes(item.id)}
                       onSelect={(isMultiSelect) => onSelectItem(item.id, isMultiSelect)}
                       onRemove={() => onRemoveItem(item.id)}
@@ -134,6 +138,7 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
 interface MainListItemProps {
   item: MainListItem;
   index: number;
+  tagPool: Tag[];
   isSelected: boolean;
   onSelect: (isMultiSelect: boolean) => void;
   onRemove: () => void;
@@ -146,6 +151,7 @@ interface MainListItemProps {
 const DraggableMainListItem: React.FC<MainListItemProps> = ({
   item,
   index,
+  tagPool,
   isSelected,
   onSelect,
   onRemove,
@@ -160,15 +166,25 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
     content: item.content
   };
 
+  const dropData: DropData = {
+    type: 'main-list-item',
+    itemId: item.id
+  };
+
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setDragNodeRef,
     isDragging,
     transform
   } = useDraggable({
     id: `main-item-${item.id}`,
     data: dragData
+  });
+
+  const { isOver: isTagDropOver, setNodeRef: setDropNodeRef } = useDroppable({
+    id: `main-item-drop-${item.id}`,
+    data: dropData
   });
 
   const style = transform ? {
@@ -178,6 +194,12 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     onSelect(e.ctrlKey || e.metaKey);
+  };
+
+  // Combine refs
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDragNodeRef(node);
+    setDropNodeRef(node);
   };
 
   return (
@@ -190,6 +212,8 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
           ? 'border-blue-500 bg-blue-50'
           : isDragging
           ? 'border-blue-300 bg-blue-50'
+          : isTagDropOver
+          ? 'border-green-400 bg-green-50'
           : 'border-gray-200 bg-white hover:bg-gray-50'
       }`}
     >
@@ -203,14 +227,20 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
           </div>
           {item.tags.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
-              {item.tags.map((tagId) => (
-                <span
-                  key={tagId}
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                >
-                  {tagId} {/* This will be replaced with actual tag names */}
-                </span>
-              ))}
+              {item.tags.map((tagId) => {
+                const tag = tagPool.find(t => t.id === tagId);
+                if (!tag) return null;
+                
+                return (
+                  <span
+                    key={tagId}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
+                    style={{ backgroundColor: tag.color }}
+                  >
+                    {tag.name}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
