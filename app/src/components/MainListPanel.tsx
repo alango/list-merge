@@ -1,6 +1,163 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import type { MainListItem, Tag } from '../types/index';
+
+// Fuzzy matching function
+const fuzzyMatch = (query: string, text: string): number => {
+  const queryLower = query.toLowerCase();
+  const textLower = text.toLowerCase();
+  
+  if (textLower === queryLower) return 100;
+  if (textLower.startsWith(queryLower)) return 90;
+  if (textLower.includes(queryLower)) return 70;
+  
+  let queryIndex = 0;
+  let score = 0;
+  
+  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
+    if (textLower[i] === queryLower[queryIndex]) {
+      score += 10;
+      queryIndex++;
+    }
+  }
+  
+  return queryIndex === queryLower.length ? score : 0;
+};
+
+// Tag input component
+interface TagInputProps {
+  availableTags: Tag[];
+  onAddTag: (tagId: string) => void;
+  onCreateTag: (name: string, color: string) => void;
+  onClose: () => void;
+}
+
+const TagInput: React.FC<TagInputProps> = ({
+  availableTags,
+  onAddTag,
+  onCreateTag,
+  onClose
+}) => {
+  const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(true);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const suggestions = React.useMemo(() => {
+    if (query.length < 1) return [];
+    
+    const filtered = availableTags
+      .map(tag => ({
+        tag,
+        score: fuzzyMatch(query, tag.name)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score || b.tag.usageCount - a.tag.usageCount)
+      .slice(0, 6);
+
+    return filtered.map(item => item.tag);
+  }, [query, availableTags]);
+
+  const canCreateNew = query.length >= 2 && 
+    !availableTags.some(tag => tag.name.toLowerCase() === query.toLowerCase());
+
+  const allOptions = canCreateNew 
+    ? [...suggestions, { id: 'create-new', name: `Create "${query}"`, color: '#10b981' } as Tag]
+    : suggestions;
+
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [suggestions.length]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (allOptions.length > 0) {
+          setHighlightedIndex((prev) => 
+            prev < allOptions.length - 1 ? prev + 1 : 0
+          );
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (allOptions.length > 0) {
+          setHighlightedIndex((prev) => 
+            prev > 0 ? prev - 1 : allOptions.length - 1
+          );
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (allOptions.length > 0) {
+          handleSelectOption(allOptions[highlightedIndex]);
+        }
+        break;
+      case 'Escape':
+        onClose();
+        break;
+    }
+  };
+
+  const handleSelectOption = (option: Tag) => {
+    if (option.id === 'create-new') {
+      onCreateTag(query, '#10b981'); // Default color
+    } else {
+      onAddTag(option.id);
+    }
+    onClose();
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Search tags..."
+        className="w-24 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
+      
+      {isOpen && allOptions.length > 0 && (
+        <div className="absolute z-50 mt-1 w-48 max-h-48 overflow-y-auto bg-white rounded-md shadow-lg border border-gray-200">
+          {allOptions.map((option, index) => (
+            <button
+              key={option.id}
+              onClick={() => handleSelectOption(option)}
+              className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center space-x-2 ${
+                index === highlightedIndex ? 'bg-blue-50' : ''
+              }`}
+            >
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: option.color }}
+              />
+              <span className="truncate">{option.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Drop data interface
 interface DropData {
@@ -63,6 +220,9 @@ interface MainListPanelProps {
   onReorderItems: (startIndex: number, endIndex: number) => void;
   onMoveUp: (itemId: string) => void;
   onMoveDown: (itemId: string) => void;
+  onAddTag: (itemIds: string[], tagId: string) => void;
+  onRemoveTag: (itemIds: string[], tagId: string) => void;
+  onCreateTag: (name: string, color: string) => void;
 }
 
 export const MainListPanel: React.FC<MainListPanelProps> = ({
@@ -73,7 +233,10 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
   onRemoveItem,
   onReorderItems,
   onMoveUp,
-  onMoveDown
+  onMoveDown,
+  onAddTag,
+  onRemoveTag,
+  onCreateTag
 }) => {
   return (
     <div className="panel h-full flex flex-col">
@@ -112,10 +275,14 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
                       index={index + 1}
                       tagPool={tagPool}
                       isSelected={selectedItems.includes(item.id)}
+                      isMultiSelectActive={selectedItems.length > 1}
                       onSelect={(isMultiSelect, isShiftSelect) => onSelectItem(item.id, isMultiSelect, isShiftSelect)}
                       onRemove={() => onRemoveItem(item.id)}
                       onMoveUp={() => onMoveUp(item.id)}
                       onMoveDown={() => onMoveDown(item.id)}
+                      onAddTag={(tagId) => onAddTag([item.id], tagId)}
+                      onRemoveTag={(tagId) => onRemoveTag([item.id], tagId)}
+                      onCreateTag={onCreateTag}
                       canMoveUp={index > 0}
                       canMoveDown={index < items.length - 1}
                     />
@@ -140,10 +307,14 @@ interface MainListItemProps {
   index: number;
   tagPool: Tag[];
   isSelected: boolean;
+  isMultiSelectActive: boolean;
   onSelect: (isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onAddTag: (tagId: string) => void;
+  onRemoveTag: (tagId: string) => void;
+  onCreateTag: (name: string, color: string) => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
 }
@@ -153,13 +324,19 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
   index,
   tagPool,
   isSelected,
+  isMultiSelectActive,
   onSelect,
   onRemove,
   onMoveUp,
   onMoveDown,
+  onAddTag,
+  onRemoveTag,
+  onCreateTag,
   canMoveUp,
   canMoveDown
 }) => {
+  const [showTagInput, setShowTagInput] = useState(false);
+  
   const dragData: DragData = {
     type: 'main-item',
     itemId: item.id,
@@ -227,24 +404,53 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
           <div className="text-sm font-medium text-gray-900 truncate select-none">
             {item.content}
           </div>
-          {item.tags.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {item.tags.map((tagId) => {
-                const tag = tagPool.find(t => t.id === tagId);
-                if (!tag) return null;
-                
-                return (
-                  <span
-                    key={tagId}
-                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
-                    style={{ backgroundColor: tag.color }}
+          <div className="mt-1 flex flex-wrap gap-1 items-center">
+            {item.tags.map((tagId) => {
+              const tag = tagPool.find(t => t.id === tagId);
+              if (!tag) return null;
+              
+              return (
+                <span
+                  key={tagId}
+                  className="group/tag inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white relative"
+                  style={{ backgroundColor: tag.color }}
+                >
+                  {tag.name}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveTag(tagId);
+                    }}
+                    className="ml-1 opacity-0 group-hover/tag:opacity-100 hover:bg-black hover:bg-opacity-20 rounded-full w-4 h-4 flex items-center justify-center text-xs transition-opacity"
+                    title="Remove tag"
                   >
-                    {tag.name}
-                  </span>
-                );
-              })}
-            </div>
-          )}
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+            {!isMultiSelectActive && (
+              showTagInput ? (
+                <TagInput
+                  availableTags={tagPool}
+                  onAddTag={onAddTag}
+                  onCreateTag={onCreateTag}
+                  onClose={() => setShowTagInput(false)}
+                />
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowTagInput(true);
+                  }}
+                  className="inline-flex items-center px-2 py-1 border border-dashed border-gray-300 rounded-full text-xs text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                  title="Add tag"
+                >
+                  + Add tag
+                </button>
+              )
+            )}
+          </div>
         </div>
         
         {/* Action buttons */}

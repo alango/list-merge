@@ -1,7 +1,6 @@
 import React from 'react';
 import { InputListPanel } from './InputListPanel';
 import { MainListPanel } from './MainListPanel';
-import { PropertiesPanel } from './PropertiesPanel';
 import { TagPoolPanel } from './TagPoolPanel';
 import type { AppState } from '../types/index';
 
@@ -70,9 +69,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   }
 
   return (
-    <div className="flex-1 grid grid-cols-[300px_1fr_300px] grid-rows-[1fr_200px] gap-4 p-4 bg-gray-50 min-h-0">
-      {/* Input Lists Panel - Top Left */}
-      <div className="row-span-1">
+    <div className="flex-1 grid grid-cols-[300px_1fr_300px] gap-4 p-4 bg-gray-50 min-h-0">
+      {/* Input Lists Panel - Left */}
+      <div>
         <InputListPanel
           inputLists={currentProject.inputLists}
           activeListId={appState.ui.activeInputList}
@@ -88,8 +87,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         />
       </div>
 
-      {/* Main List Panel - Top Center */}
-      <div className="row-span-1">
+      {/* Main List Panel - Center */}
+      <div>
         <MainListPanel
           items={currentProject.mainList}
           selectedItems={appState.ui.selectedItems}
@@ -97,6 +96,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           onSelectItem={onSelectMainItem}
           onRemoveItem={onRemoveFromMainList}
           onReorderItems={onReorderMainItems}
+          onAddTag={onAddTag}
+          onRemoveTag={onRemoveTag}
+          onCreateTag={onCreateTag}
           onMoveUp={(itemId) => {
             const item = currentProject.mainList.find(i => i.id === itemId);
             if (item && item.order > 1) {
@@ -112,19 +114,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         />
       </div>
 
-      {/* Properties Panel - Top Right */}
-      <div className="row-span-1">
-        <PropertiesPanel
-          selectedItems={selectedMainItems}
-          availableTags={appState.tagPool}
-          onAddTag={onAddTag}
-          onRemoveTag={onRemoveTag}
-          onCreateTag={onCreateTag}
-        />
-      </div>
-
-      {/* Tag Pool Panel - Bottom Span Full Width */}
-      <div className="col-span-3">
+      {/* Tag Pool Panel - Right */}
+      <div>
         <TagPoolPanel
           tags={appState.tagPool}
           selectedItemCount={appState.ui.selectedItems.length}
