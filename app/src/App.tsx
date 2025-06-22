@@ -303,7 +303,39 @@ function App() {
     }));
   };
 
-  // Main list management
+  // Helper function to find item in both input lists and main lists with context
+  const findItemWithContext = (itemId: string, currentProject: any) => {
+    if (!currentProject) return null;
+    
+    // Check main list first
+    const mainItemIndex = currentProject.mainList.findIndex((item: any) => item.id === itemId);
+    if (mainItemIndex !== -1) {
+      return {
+        type: 'main-list' as const,
+        list: currentProject.mainList,
+        index: mainItemIndex,
+        item: currentProject.mainList[mainItemIndex]
+      };
+    }
+    
+    // Check input lists
+    for (const inputList of currentProject.inputLists) {
+      const itemIndex = inputList.items.findIndex((item: any) => item.id === itemId);
+      if (itemIndex !== -1) {
+        return {
+          type: 'input-list' as const,
+          list: inputList.items,
+          index: itemIndex,
+          item: inputList.items[itemIndex],
+          listId: inputList.id
+        };
+      }
+    }
+    
+    return null;
+  };
+
+  // Main list management (now supports both main list and input list items)
   const handleSelectMainItem = (itemId: string, isMultiSelect: boolean, isShiftSelect: boolean = false) => {
     setAppState(prev => {
       if (!prev.currentProject) return prev;
@@ -312,22 +344,26 @@ function App() {
       let newAnchorItem: string | null = prev.ui.anchorItem;
       
       if (isShiftSelect && prev.ui.anchorItem) {
-        // Range selection: select all items between anchor and clicked item
-        const mainList = prev.currentProject.mainList;
-        const anchorIndex = mainList.findIndex(item => item.id === prev.ui.anchorItem);
-        const clickedIndex = mainList.findIndex(item => item.id === itemId);
+        // Range selection: find both anchor and clicked items
+        const anchorContext = findItemWithContext(prev.ui.anchorItem, prev.currentProject);
+        const clickedContext = findItemWithContext(itemId, prev.currentProject);
         
-        if (anchorIndex !== -1 && clickedIndex !== -1) {
-          const startIndex = Math.min(anchorIndex, clickedIndex);
-          const endIndex = Math.max(anchorIndex, clickedIndex);
-          const rangeItems = mainList.slice(startIndex, endIndex + 1).map(item => item.id);
+        // Only allow range selection within the same list type and list
+        if (anchorContext && clickedContext && 
+            anchorContext.type === clickedContext.type &&
+            (anchorContext.type === 'main-list' || 
+             (anchorContext.type === 'input-list' && anchorContext.listId === clickedContext.listId))) {
+          
+          const startIndex = Math.min(anchorContext.index, clickedContext.index);
+          const endIndex = Math.max(anchorContext.index, clickedContext.index);
+          const rangeItems = anchorContext.list.slice(startIndex, endIndex + 1).map(item => item.id);
           
           // Combine existing selection with range selection
           const existingSelection = new Set(prev.ui.selectedItems);
           rangeItems.forEach(id => existingSelection.add(id));
           newSelectedItems = Array.from(existingSelection);
         } else {
-          // Fallback to regular selection if indices not found
+          // Fallback to regular selection if contexts don't match or not found
           newSelectedItems = [itemId];
           newAnchorItem = itemId;
         }

@@ -190,7 +190,7 @@ interface DraggableInputItemProps {
   onKeyPress: (e: React.KeyboardEvent, action: () => void) => void;
   onMoveToMain: (itemId: string) => void;
   onDeleteItem: (itemId: string) => void;
-  onSelect: (isMultiSelect: boolean) => void;
+  onSelect: (isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onAddTag: (tagId: string) => void;
   onRemoveTag: (tagId: string) => void;
   onCreateAndAddTag: (name: string, color: string) => void;
@@ -263,7 +263,8 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
     }
     
     const isMultiSelect = e.ctrlKey || e.metaKey;
-    onSelect(isMultiSelect);
+    const isShiftSelect = e.shiftKey;
+    onSelect(isMultiSelect, isShiftSelect);
   };
 
   // Combine refs
@@ -318,18 +319,16 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
                   style={{ backgroundColor: tag.color }}
                 >
                   {tag.name}
-                  {!item.isUsed && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveTag(tagId);
-                      }}
-                      className="absolute -top-1 -right-1 opacity-0 group-hover/tag:opacity-100 hover:bg-black hover:bg-opacity-40 rounded-full w-4 h-4 flex items-center justify-center text-xs transition-opacity bg-gray-600"
-                      title="Remove tag"
-                    >
-                      ×
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveTag(tagId);
+                    }}
+                    className="absolute -top-1 -right-1 opacity-0 group-hover/tag:opacity-100 hover:bg-black hover:bg-opacity-40 rounded-full w-4 h-4 flex items-center justify-center text-xs transition-opacity bg-gray-600"
+                    title="Remove tag"
+                  >
+                    ×
+                  </button>
                 </span>
               );
             })}
@@ -425,7 +424,7 @@ interface InputListPanelProps {
   onRenameList: (listId: string, newName: string) => void;
   onDeleteList: (listId: string) => void;
   onMoveToMain: (listId: string, itemId: string) => void;
-  onSelectItem: (itemId: string, isMultiSelect: boolean) => void;
+  onSelectItem: (itemId: string, isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onAddTag: (itemIds: string[], tagId: string) => void;
   onRemoveTag: (itemIds: string[], tagId: string) => void;
   onCreateTag: (name: string, color: string) => string | null;
@@ -526,7 +525,7 @@ interface InputListContentProps {
   onRenameList: (newName: string) => void;
   onDeleteList: () => void;
   onMoveToMain: (itemId: string) => void;
-  onSelectItem: (itemId: string, isMultiSelect: boolean) => void;
+  onSelectItem: (itemId: string, isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onAddTag: (itemIds: string[], tagId: string) => void;
   onRemoveTag: (itemIds: string[], tagId: string) => void;
   onCreateTag: (name: string, color: string) => string | null;
@@ -684,7 +683,7 @@ const InputListContent: React.FC<InputListContentProps> = ({
               onKeyPress={handleKeyPress}
               onMoveToMain={onMoveToMain}
               onDeleteItem={onDeleteItem}
-              onSelect={(isMultiSelect) => onSelectItem(item.id, isMultiSelect)}
+              onSelect={(isMultiSelect, isShiftSelect) => onSelectItem(item.id, isMultiSelect, isShiftSelect)}
               onAddTag={(tagId) => onAddTag([item.id], tagId)}
               onRemoveTag={(tagId) => onRemoveTag([item.id], tagId)}
               onCreateAndAddTag={(name, color) => {
