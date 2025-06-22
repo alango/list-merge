@@ -41,20 +41,18 @@
 ### 2.1 Core Components
 - **App**: Root component managing global state and routing
 - **ProjectManager**: Handles project creation, loading, and saving
-- **Workspace**: Main four-panel layout component
+- **Workspace**: Main three-panel layout component
 - **InputListPanel**: Container for all input lists with tab interface
-- **MainListPanel**: Drag-drop target for building the ranked list
-- **PropertiesPanel**: Item details and tag management interface
+- **MainListPanel**: Drag-drop target for building the ranked list with inline tag management
 - **TagPoolPanel**: Tag creation and management interface
 
 ### 2.2 Specialized Components
 - **DraggableItem**: Reusable component for draggable list items with state management
 - **SelectableItem**: Component supporting multi-select functionality with SelectionManager integration
 - **DropZone**: Designated areas that accept dropped items
-- **TagChip**: Individual tag display component with drag capability and color display
-- **TagEditor**: Interface for managing item tags with autocomplete and validation
+- **TagChip**: Individual tag display component with hover remove actions and color display
+- **TagInput**: Inline tag autocomplete and creation component with fuzzy matching
 - **TagCreationDialog**: Modal for creating new tags with color picker and duplicate validation
-- **TagAutocomplete**: Dropdown component for tag suggestions with fuzzy matching
 - **FileImporter**: Handles file selection and parsing for supported formats
 - **ExportDialog**: Modal for export functionality
 - **UndoRedoControls**: Toolbar component with undo/redo buttons and keyboard shortcut handling
@@ -74,13 +72,11 @@ App
 │   │   └── AddListButton
 │   ├── MainListPanel
 │   │   ├── DropZone
-│   │   ├── SelectableItem[] (with multi-select)
+│   │   ├── SelectableItem[] (with multi-select and inline tag management)
+│   │   │   ├── TagChip[] (with hover remove actions)
+│   │   │   └── TagInput (when adding tags)
 │   │   ├── SelectionIndicator
 │   │   └── BulkActionBar
-│   ├── PropertiesPanel
-│   │   ├── ItemDetails
-│   │   ├── TagEditor
-│   │   └── SourceInfo
 │   └── TagPoolPanel
 │       ├── TagCreator
 │       ├── TagChip[] (draggable)
@@ -360,34 +356,30 @@ interface DragEvent {
 
 ### 4.2 Panel Communication Patterns
 
-#### 4.2.1 Properties Panel Synchronization
-- **Selection Subscription**: Properties panel subscribes to selection change events
-- **Real-time Updates**: Immediate reflection of changes from other panels
-- **Edit Mode Coordination**: Prevents conflicts when multiple panels try to edit same item
-- **Validation Feedback**: Propagates validation results back to triggering components
+#### 4.2.1 Inline Tag Management Integration
+- **Real-time Synchronization**: Tag changes in main list items immediately update tag pool usage counts
+- **Auto-suggestion Coordination**: Inline tag inputs receive live suggestions from tag pool
+- **Validation Feedback**: Immediate validation of tag names and duplicate prevention
+- **State Consistency**: Tag creation automatically updates both tag pool and item tags
 
 ```typescript
-class PropertiesPanel {
-  private subscriptions: (() => void)[] = [];
-  
-  componentDidMount() {
-    // Subscribe to selection events
-    this.subscriptions.push(
-      eventBus.subscribe('SELECTION_CHANGED', this.handleSelectionChange)
-    );
-    
-    // Subscribe to item updates from other sources
-    this.subscriptions.push(
-      eventBus.subscribe('ITEM_UPDATED', this.handleItemUpdate)
-    );
-  }
-  
-  private handleSelectionChange = (event: ComponentEvent<SelectionEvent>) => {
-    // Update displayed item details
-    // Clear edit state if selection changed
-    // Load new item properties
-  };
+// Inline tag management coordination
+interface TagManagementEvent {
+  itemId: string;
+  operation: 'ADD_TAG' | 'REMOVE_TAG' | 'CREATE_AND_ADD';
+  tagId?: string;
+  tagData?: { name: string; color: string };
+  success: boolean;
 }
+
+// Tag input components coordinate with tag pool for suggestions
+const handleTagCreation = (name: string, color: string) => {
+  const newTagId = createTag(name, color);
+  if (newTagId) {
+    addTagToItem(itemId, newTagId);
+    updateTagPoolUsage(newTagId);
+  }
+};
 ```
 
 #### 4.2.2 Tag Pool Integration
@@ -632,81 +624,140 @@ interface CreateTagResponse {
 - **Auto-Assignment**: New tags automatically assigned colors from unused palette
 - **Color Persistence**: Tag colors maintained across sessions and export/import
 
-## 8. File Processing
+## 8. Inline Tag Management Implementation
 
-### 8.1 Supported Import Formats
+### 8.1 Tag Display and Interaction
+```typescript
+interface TagChipProps {
+  tag: Tag;
+  onRemove: (tagId: string) => void;
+  isHoverable?: boolean;
+}
+
+const TagChip: React.FC<TagChipProps> = ({ tag, onRemove, isHoverable = true }) => (
+  <span className="group/tag relative inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
+        style={{ backgroundColor: tag.color }}>
+    {tag.name}
+    {isHoverable && (
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(tag.id); }}
+        className="absolute -top-1 -right-1 opacity-0 group-hover/tag:opacity-100 
+                   hover:bg-black hover:bg-opacity-40 rounded-full w-4 h-4 
+                   flex items-center justify-center text-xs transition-opacity bg-gray-600"
+        title="Remove tag"
+      >
+        ×
+      </button>
+    )}
+  </span>
+);
+```
+
+### 8.2 Inline Tag Input Component
+```typescript
+interface TagInputProps {
+  availableTags: Tag[];
+  onAddTag: (tagId: string) => void;
+  onCreateAndAddTag: (name: string, color: string) => void;
+  onClose: () => void;
+}
+
+// Features:
+// - Fuzzy search autocomplete with ranking by relevance and usage
+// - Real-time tag creation with automatic application to current item
+// - Keyboard navigation (Arrow keys, Enter, Escape)
+// - Click outside to close
+// - Automatic focus on mount
+```
+
+### 8.3 Tag Management Workflow Integration
+- **Contextual Creation**: Tags created inline are immediately applied to the current item
+- **Smart Defaults**: New tags get auto-assigned colors from the default palette
+- **Multi-select Awareness**: Add tag UI hidden when multiple items are selected to prevent confusion
+- **Consistent Validation**: Same duplicate prevention and validation as tag pool creation
+- **Usage Tracking**: Tag usage counts updated automatically for autocomplete ranking
+
+### 8.4 Performance Optimizations
+- **Debounced Search**: 300ms delay for autocomplete to prevent excessive filtering
+- **Memoized Suggestions**: Fuzzy matching results cached based on query and available tags
+- **Event Bubbling**: Proper event handling to prevent conflicts with item selection
+- **Minimal Re-renders**: Tag state changes isolated to prevent unnecessary component updates
+
+## 9. File Processing
+
+### 9.1 Supported Import Formats
 - **CSV**: Single-row format where all entries are comma-separated values in one row
 - **Plain Text**: Line-by-line format with each entry on a new line, empty lines ignored
 - **JSON**: Application's export format containing complete project data with ranked lists and tags
 
-### 8.2 Export Format
+### 9.2 Export Format
 - **JSON**: Complete project export including all input lists, main ranked list, tags, and metadata
 - **Structured Data**: Full project backup containing all user work
 - **Reimport Capability**: Exported files can be imported to restore complete project state
 
-## 9. Performance Considerations
+## 10. Performance Considerations
 
-### 9.1 Optimization Strategies
+### 10.1 Optimization Strategies
 - **Virtual Scrolling**: For large lists (>1000 items)
 - **Memoization**: React.memo for expensive components
 - **Debounced Updates**: Prevent excessive re-renders during typing
 - **Lazy Loading**: Code splitting for non-critical features
 
-### 9.2 Memory Management
+### 10.2 Memory Management
 - **Cleanup**: Proper cleanup of event listeners and timers
 - **Storage Monitoring**: Track localStorage usage
 - **Garbage Collection**: Avoid memory leaks in drag operations
 
-## 10. Error Handling
+## 11. Error Handling
 
-### 10.1 Error Boundaries
+### 11.1 Error Boundaries
 - **Component-Level**: Isolate errors to prevent full app crashes
 - **Fallback UI**: User-friendly error displays
 - **Error Reporting**: Console logging for debugging
 
-### 10.2 Data Validation
+### 11.2 Data Validation
 - **Import Validation**: Schema validation for imported data
 - **Storage Validation**: Corruption detection for stored data
 - **User Input**: Client-side validation with clear error messages
 
-## 11. Testing Strategy
+## 12. Testing Strategy
 
-### 11.1 Testing Approach
+### 12.1 Testing Approach
 - **Unit Tests**: Jest for utility functions and reducers
 - **Component Tests**: React Testing Library for UI components
 - **Integration Tests**: E2E testing for critical user flows
 - **Manual Testing**: Cross-browser compatibility testing
 
-### 11.2 Test Coverage Areas
+### 12.2 Test Coverage Areas
 - **Drag and Drop**: Comprehensive testing of DnD interactions
 - **Data Persistence**: LocalStorage operations and data integrity
 - **File Processing**: Import/export functionality
 - **State Management**: Reducer logic and state transitions
 
-## 12. Deployment and Build
+## 13. Deployment and Build
 
-### 12.1 Build Configuration
+### 13.1 Build Configuration
 - **Vite Configuration**: Optimized for production builds
 - **Asset Optimization**: Image and CSS optimization
 - **Bundle Analysis**: Monitoring bundle size and dependencies
 - **Environment Variables**: Configuration for different environments
 
-### 12.2 Deployment Options
+### 13.2 Deployment Options
 - **Static Hosting**: Netlify, Vercel, or GitHub Pages
 - **CDN Distribution**: Fast global content delivery
 - **Progressive Web App**: PWA features for offline usage
 - **Browser Compatibility**: Support for modern browsers (ES2020+)
 
-## 13. Future Extensibility
+## 14. Future Extensibility
 
-### 13.1 Potential Enhancements
+### 14.1 Potential Enhancements
 - **Cloud Sync**: Optional cloud storage integration
 - **Collaboration**: Real-time collaborative editing
 - **Advanced Filtering**: Complex query-based filtering
 - **Plugin System**: Extensible architecture for custom features
 - **Mobile App**: React Native version for mobile devices
 
-### 13.2 Architecture Considerations
+### 14.2 Architecture Considerations
 - **Modular Design**: Easy addition of new features
 - **API Abstraction**: Storage layer abstraction for future backends
 - **Configuration System**: Feature flags and user preferences

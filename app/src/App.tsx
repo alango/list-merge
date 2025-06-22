@@ -491,12 +491,12 @@ function App() {
   };
 
   // Tag management
-  const handleCreateTag = (name: string, color: string) => {
+  const handleCreateTag = (name: string, color: string): string | null => {
     const validation = validateTag(name);
     if (!validation.isValid) {
       console.error('Tag validation failed:', validation.error);
       // TODO: Show user-friendly error message
-      return;
+      return null;
     }
 
     const newTag: Tag = {
@@ -511,6 +511,8 @@ function App() {
       ...prev,
       tagPool: [...prev.tagPool, newTag]
     }));
+    
+    return newTag.id;
   };
 
   const handleEditTag = (tagId: string, name: string, color: string) => {

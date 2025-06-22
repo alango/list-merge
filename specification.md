@@ -53,11 +53,10 @@ List Merge is a web-based application that allows users to merge multiple input 
 ## 3. User Interface Layout
 
 ### 3.1 Main Workspace
-- **Four-Panel Layout**: 
+- **Three-Panel Layout**: 
   - Left panel: Input lists
-  - Center panel: Main ranked list
-  - Right panel: Properties/details for selected items
-  - Bottom panel: Tag pool and multi-select controls
+  - Center panel: Main ranked list with inline tag management
+  - Right panel: Tag pool and multi-select controls
 - **Responsive Design**: Interface adapts to different screen sizes
 - **Collapsible Panels**: Panels can be minimized to focus on specific areas
 
@@ -72,15 +71,21 @@ List Merge is a web-based application that allows users to merge multiple input 
 ### 3.3 Main List Panel
 - **Drag Drop Zone**: Clear visual indication of drop-acceptable areas
 - **Ranking Numbers**: Sequential numbering of items in their ranked order
-- **Tag Display**: Compact view of tags associated with each item
+- **Inline Tag Management**: Direct tag editing, addition, and removal on each item
+- **Hover Actions**: Tag removal buttons appear on hover in the top-right corner of tags
+- **Tag Addition**: "Add tag" button with autocomplete and creation functionality
 - **Multi-Select**: Ability to select multiple items for bulk operations
 - **Reordering Controls**: Visual handles for drag-and-drop reordering
 
-### 3.4 Properties Panel
-- **Selected Item Details**: Shows information about currently selected item
-- **Tag Editor**: Interface for adding, editing, and removing tags
-- **Source Information**: Display of which input list the item came from
-- **Item Notes**: Optional field for additional item-specific notes
+### 3.4 Tag Pool Panel
+- **Available Tags**: Display of all created tags in the project with their custom colors
+- **Create New Tag**: Interface for adding new freeform text tags with color picker and duplicate validation
+- **Drag Source**: Tags can be dragged from this panel onto items in the main list for bulk operations
+- **Tag Management**: Edit tag names and colors with hover actions, delete existing tags with confirmation
+- **Inline Editing**: Click edit icon on tag hover to access inline editing form with name input and color picker
+- **Visual Organization**: Tags displayed with their assigned colors for easy identification
+- **Multi-Select Actions**: Controls for applying tags to multiple selected items
+- **Usage Indicators**: Tags show usage count to indicate how many items are using each tag
 
 ## 4. User Workflows
 
@@ -105,35 +110,29 @@ List Merge is a web-based application that allows users to merge multiple input 
 4. Source item in input list becomes greyed out and non-draggable
 5. User can reorder items in the main list by dragging
 6. User can add additional tags by:
-   - Dragging tags from the tag pool onto items
-   - Selecting multiple items and applying tags through bulk actions
-   - Using the properties panel for individual items
+   - Clicking the "Add tag" button on individual items for inline tag management
+   - Dragging tags from the tag pool onto items for bulk operations
+   - Selecting multiple items and dragging tags from the tag pool for bulk application
 
 ### 4.4 Tag Management Workflow
-1. User creates new tags in the tag pool panel with duplicate name validation and color selection
+1. User creates new tags either in the tag pool panel or inline when adding tags to items
 2. User can customize tag colors during creation or later through tag management interface
 3. Tags can be applied to items by:
+   - Clicking "Add tag" button on individual items for inline tag management with autocomplete
    - Dragging tags from pool to individual items
-   - Selecting multiple items and choosing tags for bulk application
-   - Using the properties panel with autocomplete suggestions of existing tags
-   - Typing tag names with auto-suggestion dropdown showing matching existing tags
-4. System maintains a master list of all created tags for reuse and prevents duplicates
-5. Tags can be edited (name and color) or deleted from the tag pool using hover actions:
+   - Selecting multiple items and dragging tags from the tag pool for bulk application
+   - Creating new tags inline which are automatically applied to the current item
+4. Tags can be removed from items by:
+   - Hovering over tags on items to reveal remove button in top-right corner
+   - Clicking the "×" button that appears on hover
+5. System maintains a master list of all created tags for reuse and prevents duplicates
+6. Tags can be edited (name and color) or deleted from the tag pool using hover actions:
    - Hover over any tag in the tag pool to reveal edit and delete icons
    - Click edit icon to enter inline editing mode with name input and color picker
    - Use Enter to save changes or Escape to cancel editing
    - All items using the edited tag are automatically updated with new name/color
-6. When typing new tag names, system provides real-time suggestions from existing tags
+7. Inline tag management includes autocomplete with fuzzy search and real-time suggestions
 
-### 3.5 Tag Pool Panel
-- **Available Tags**: Display of all created tags in the project with their custom colors
-- **Create New Tag**: Interface for adding new freeform text tags with color picker and duplicate validation
-- **Drag Source**: Tags can be dragged from this panel onto items in the main list
-- **Tag Management**: Edit tag names and colors with hover actions, delete existing tags with confirmation
-- **Inline Editing**: Click edit icon on tag hover to access inline editing form with name input and color picker
-- **Visual Organization**: Tags displayed with their assigned colors for easy identification
-- **Multi-Select Actions**: Controls for applying tags to multiple selected items
-- **Usage Indicators**: Tags show usage count to indicate how many items are using each tag# List Merge -
 
 ### 4.5 Finalizing and Exporting
 1. User reviews the completed main list

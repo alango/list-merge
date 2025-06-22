@@ -28,14 +28,14 @@ const fuzzyMatch = (query: string, text: string): number => {
 interface TagInputProps {
   availableTags: Tag[];
   onAddTag: (tagId: string) => void;
-  onCreateTag: (name: string, color: string) => void;
+  onCreateAndAddTag: (name: string, color: string) => void;
   onClose: () => void;
 }
 
 const TagInput: React.FC<TagInputProps> = ({
   availableTags,
   onAddTag,
-  onCreateTag,
+  onCreateAndAddTag,
   onClose
 }) => {
   const [query, setQuery] = useState('');
@@ -117,7 +117,7 @@ const TagInput: React.FC<TagInputProps> = ({
 
   const handleSelectOption = (option: Tag) => {
     if (option.id === 'create-new') {
-      onCreateTag(query, '#10b981'); // Default color
+      onCreateAndAddTag(query, '#10b981'); // Default color
     } else {
       onAddTag(option.id);
     }
@@ -222,7 +222,7 @@ interface MainListPanelProps {
   onMoveDown: (itemId: string) => void;
   onAddTag: (itemIds: string[], tagId: string) => void;
   onRemoveTag: (itemIds: string[], tagId: string) => void;
-  onCreateTag: (name: string, color: string) => void;
+  onCreateTag: (name: string, color: string) => string | null;
 }
 
 export const MainListPanel: React.FC<MainListPanelProps> = ({
@@ -282,7 +282,12 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
                       onMoveDown={() => onMoveDown(item.id)}
                       onAddTag={(tagId) => onAddTag([item.id], tagId)}
                       onRemoveTag={(tagId) => onRemoveTag([item.id], tagId)}
-                      onCreateTag={onCreateTag}
+                      onCreateAndAddTag={(name, color) => {
+                        const newTagId = onCreateTag(name, color);
+                        if (newTagId) {
+                          onAddTag([item.id], newTagId);
+                        }
+                      }}
                       canMoveUp={index > 0}
                       canMoveDown={index < items.length - 1}
                     />
@@ -314,7 +319,7 @@ interface MainListItemProps {
   onMoveDown: () => void;
   onAddTag: (tagId: string) => void;
   onRemoveTag: (tagId: string) => void;
-  onCreateTag: (name: string, color: string) => void;
+  onCreateAndAddTag: (name: string, color: string) => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
 }
@@ -331,7 +336,7 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
   onMoveDown,
   onAddTag,
   onRemoveTag,
-  onCreateTag,
+  onCreateAndAddTag,
   canMoveUp,
   canMoveDown
 }) => {
@@ -421,7 +426,7 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
                       e.stopPropagation();
                       onRemoveTag(tagId);
                     }}
-                    className="ml-1 opacity-0 group-hover/tag:opacity-100 hover:bg-black hover:bg-opacity-20 rounded-full w-4 h-4 flex items-center justify-center text-xs transition-opacity"
+                    className="absolute -top-1 -right-1 opacity-0 group-hover/tag:opacity-100 hover:bg-black hover:bg-opacity-40 rounded-full w-4 h-4 flex items-center justify-center text-xs transition-opacity bg-gray-600"
                     title="Remove tag"
                   >
                     ×
@@ -434,7 +439,7 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
                 <TagInput
                   availableTags={tagPool}
                   onAddTag={onAddTag}
-                  onCreateTag={onCreateTag}
+                  onCreateAndAddTag={onCreateAndAddTag}
                   onClose={() => setShowTagInput(false)}
                 />
               ) : (

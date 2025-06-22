@@ -13,7 +13,7 @@ interface TagDragData {
 interface TagPoolPanelProps {
   tags: Tag[];
   selectedItemCount: number;
-  onCreateTag: (name: string, color: string) => void;
+  onCreateTag: (name: string, color: string) => string | null;
   onEditTag: (tagId: string, name: string, color: string) => void;
   onDeleteTag: (tagId: string) => void;
   onApplyTagToSelected: (tagId: string) => void;
