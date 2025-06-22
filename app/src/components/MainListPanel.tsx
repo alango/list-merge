@@ -58,7 +58,7 @@ interface MainListPanelProps {
   items: MainListItem[];
   selectedItems: string[];
   tagPool: Tag[];
-  onSelectItem: (itemId: string, isMultiSelect: boolean) => void;
+  onSelectItem: (itemId: string, isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onRemoveItem: (itemId: string) => void;
   onReorderItems: (startIndex: number, endIndex: number) => void;
   onMoveUp: (itemId: string) => void;
@@ -112,7 +112,7 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
                       index={index + 1}
                       tagPool={tagPool}
                       isSelected={selectedItems.includes(item.id)}
-                      onSelect={(isMultiSelect) => onSelectItem(item.id, isMultiSelect)}
+                      onSelect={(isMultiSelect, isShiftSelect) => onSelectItem(item.id, isMultiSelect, isShiftSelect)}
                       onRemove={() => onRemoveItem(item.id)}
                       onMoveUp={() => onMoveUp(item.id)}
                       onMoveDown={() => onMoveDown(item.id)}
@@ -140,7 +140,7 @@ interface MainListItemProps {
   index: number;
   tagPool: Tag[];
   isSelected: boolean;
-  onSelect: (isMultiSelect: boolean) => void;
+  onSelect: (isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -193,7 +193,9 @@ const DraggableMainListItem: React.FC<MainListItemProps> = ({
   } : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
-    onSelect(e.ctrlKey || e.metaKey);
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+    const isShiftSelect = e.shiftKey;
+    onSelect(isMultiSelect, isShiftSelect);
   };
 
   // Combine refs

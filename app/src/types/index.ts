@@ -52,5 +52,6 @@ export interface AppState {
   ui: {
     selectedItems: string[];
     activeInputList: string | null;
+    anchorItem: string | null; // For shift-click range selection
   };
 }

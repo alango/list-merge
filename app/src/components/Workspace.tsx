@@ -16,7 +16,7 @@ interface WorkspaceProps {
   onRenameList: (listId: string, newName: string) => void;
   onDeleteList: (listId: string) => void;
   onMoveToMainList: (listId: string, itemId: string) => void;
-  onSelectMainItem: (itemId: string, isMultiSelect: boolean) => void;
+  onSelectMainItem: (itemId: string, isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onRemoveFromMainList: (itemId: string) => void;
   onReorderMainItems: (startIndex: number, endIndex: number) => void;
   onAddTag: (itemIds: string[], tagId: string) => void;

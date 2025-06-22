@@ -119,7 +119,8 @@ function App() {
     tagPool: createMockTags(),
     ui: {
       selectedItems: [],
-      activeInputList: 'list1'
+      activeInputList: 'list1',
+      anchorItem: null
     }
   });
 
@@ -345,25 +346,61 @@ function App() {
   };
 
   // Main list management
-  const handleSelectMainItem = (itemId: string, isMultiSelect: boolean) => {
+  const handleSelectMainItem = (itemId: string, isMultiSelect: boolean, isShiftSelect: boolean = false) => {
     setAppState(prev => {
-      let newSelectedItems: string[];
+      if (!prev.currentProject) return prev;
       
-      if (isMultiSelect) {
+      let newSelectedItems: string[];
+      let newAnchorItem: string | null = prev.ui.anchorItem;
+      
+      if (isShiftSelect && prev.ui.anchorItem) {
+        // Range selection: select all items between anchor and clicked item
+        const mainList = prev.currentProject.mainList;
+        const anchorIndex = mainList.findIndex(item => item.id === prev.ui.anchorItem);
+        const clickedIndex = mainList.findIndex(item => item.id === itemId);
+        
+        if (anchorIndex !== -1 && clickedIndex !== -1) {
+          const startIndex = Math.min(anchorIndex, clickedIndex);
+          const endIndex = Math.max(anchorIndex, clickedIndex);
+          const rangeItems = mainList.slice(startIndex, endIndex + 1).map(item => item.id);
+          
+          // Combine existing selection with range selection
+          const existingSelection = new Set(prev.ui.selectedItems);
+          rangeItems.forEach(id => existingSelection.add(id));
+          newSelectedItems = Array.from(existingSelection);
+        } else {
+          // Fallback to regular selection if indices not found
+          newSelectedItems = [itemId];
+          newAnchorItem = itemId;
+        }
+      } else if (isMultiSelect) {
         // Toggle selection in multi-select mode
         if (prev.ui.selectedItems.includes(itemId)) {
           newSelectedItems = prev.ui.selectedItems.filter(id => id !== itemId);
+          // Keep anchor if removing non-anchor item, otherwise clear anchor
+          if (prev.ui.anchorItem === itemId) {
+            newAnchorItem = null;
+          }
         } else {
           newSelectedItems = [...prev.ui.selectedItems, itemId];
+          // Set as anchor if no anchor exists
+          if (!prev.ui.anchorItem) {
+            newAnchorItem = itemId;
+          }
         }
       } else {
         // Single selection
         newSelectedItems = [itemId];
+        newAnchorItem = itemId;
       }
 
       return {
         ...prev,
-        ui: { ...prev.ui, selectedItems: newSelectedItems }
+        ui: { 
+          ...prev.ui, 
+          selectedItems: newSelectedItems,
+          anchorItem: newAnchorItem
+        }
       };
     });
   };
