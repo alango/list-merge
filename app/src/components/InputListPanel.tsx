@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { InputList, InputListItem, Tag } from '../types/index';
 
 // Fuzzy matching function
@@ -167,6 +167,13 @@ interface DragData {
   content: string;
 }
 
+// Drop data interface
+interface DropData {
+  type: 'input-list-item';
+  itemId: string;
+  listId: string;
+}
+
 // Draggable item component
 interface DraggableInputItemProps {
   item: InputListItem;
@@ -218,6 +225,12 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
     content: item.content
   };
 
+  const dropData: DropData = {
+    type: 'input-list-item',
+    itemId: item.id,
+    listId: listId
+  };
+
   const {
     attributes,
     listeners,
@@ -228,6 +241,12 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
     id: item.id,
     data: dragData,
     disabled: item.isUsed || isEditing
+  });
+
+  const { isOver: isTagDropOver, setNodeRef: setDropNodeRef } = useDroppable({
+    id: `input-item-drop-${item.id}`,
+    data: dropData,
+    disabled: isEditing // Disable drops while editing
   });
 
   const style = transform ? {
@@ -247,8 +266,14 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
     onSelect(isMultiSelect);
   };
 
+  // Combine refs
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDropNodeRef(node);
+  };
+
   return (
     <div
+      ref={setNodeRef}
       style={style}
       onClick={handleClick}
       className={`group relative p-3 border rounded-md cursor-pointer transition-colors ${
@@ -258,6 +283,8 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
           ? 'border-gray-200 bg-gray-50 text-gray-400' 
           : isDragging
           ? 'border-blue-300 bg-blue-50'
+          : isTagDropOver
+          ? 'border-green-400 bg-green-50'
           : 'border-gray-200 bg-white hover:bg-gray-50'
       }`}
     >

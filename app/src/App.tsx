@@ -21,7 +21,7 @@ interface DragData {
 }
 
 interface DropData {
-  type: 'main-list' | 'main-list-position' | 'main-list-item';
+  type: 'main-list' | 'main-list-position' | 'main-list-item' | 'input-list-item';
   listId?: string;
   position?: number;
   itemId?: string;
@@ -726,6 +726,13 @@ function App() {
       }
     } else if (dragData.type === 'tag' && dropData.type === 'main-list-item') {
       // Dropping tag on main list item
+      const targetItemIds = appState.ui.selectedItems.includes(dropData.itemId!) && appState.ui.selectedItems.length > 1
+        ? appState.ui.selectedItems // Apply to all selected items
+        : [dropData.itemId!]; // Apply to just the dropped-on item
+      
+      handleAddTag(targetItemIds, dragData.tagId!);
+    } else if (dragData.type === 'tag' && dropData.type === 'input-list-item') {
+      // Dropping tag on input list item
       const targetItemIds = appState.ui.selectedItems.includes(dropData.itemId!) && appState.ui.selectedItems.length > 1
         ? appState.ui.selectedItems // Apply to all selected items
         : [dropData.itemId!]; // Apply to just the dropped-on item
