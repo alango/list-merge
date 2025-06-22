@@ -42,7 +42,7 @@
 - **App**: Root component managing global state and routing
 - **ProjectManager**: Handles project creation, loading, and saving
 - **Workspace**: Main three-panel layout component
-- **InputListPanel**: Container for all input lists with tab interface
+- **InputListPanel**: Container for all input lists with tab interface and full tag management functionality
 - **MainListPanel**: Drag-drop target for building the ranked list with inline tag management
 - **TagPoolPanel**: Tag creation and management interface
 
@@ -68,7 +68,7 @@ App
 │   ├── InputListPanel
 │   │   ├── ListTabs
 │   │   ├── InputList[]
-│   │   │   └── DraggableItem[] (with greyed-out state)
+│   │   │   └── DraggableItem[] (with greyed-out state, tag display, and inline tag management)
 │   │   └── AddListButton
 │   ├── MainListPanel
 │   │   ├── DropZone
@@ -250,6 +250,7 @@ interface InputListItem {
   id: string;
   content: string;
   isUsed: boolean; // For greying out used items
+  tags: string[]; // Tags associated with this item
 }
 
 interface MainListItem {
@@ -676,6 +677,8 @@ interface TagInputProps {
 - **Multi-select Awareness**: Add tag UI hidden when multiple items are selected to prevent confusion
 - **Consistent Validation**: Same duplicate prevention and validation as tag pool creation
 - **Usage Tracking**: Tag usage counts updated automatically for autocomplete ranking
+- **Bidirectional Synchronization**: Tags added to items in either input lists or main list are automatically synchronized using shared item IDs
+- **Input List Integration**: Full tag management functionality available on input list items with feature parity to main list items
 
 ### 8.4 Performance Optimizations
 - **Debounced Search**: 300ms delay for autocomplete to prevent excessive filtering

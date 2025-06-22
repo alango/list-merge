@@ -38,36 +38,36 @@ const createMockProject = (): Project => ({
       id: 'list1',
       name: 'To-Do Items',
       items: [
-        { id: 'item1', content: 'Write project proposal', isUsed: false },
-        { id: 'item2', content: 'Review budget documents', isUsed: false },
-        { id: 'item3', content: 'Schedule team meeting', isUsed: true },
-        { id: 'item4', content: 'Update website content', isUsed: false },
+        { id: 'item1', content: 'Write project proposal', isUsed: false, tags: [] },
+        { id: 'item2', content: 'Review budget documents', isUsed: false, tags: [] },
+        { id: 'item3', content: 'Schedule team meeting', isUsed: true, tags: ['tag1'] },
+        { id: 'item4', content: 'Update website content', isUsed: false, tags: [] },
       ]
     },
     {
       id: 'list2', 
       name: 'Feature Ideas',
       items: [
-        { id: 'item5', content: 'Dark mode toggle', isUsed: false },
-        { id: 'item6', content: 'User authentication', isUsed: true },
-        { id: 'item7', content: 'Export to PDF', isUsed: false },
-        { id: 'item8', content: 'Mobile app version', isUsed: false },
+        { id: 'item5', content: 'Dark mode toggle', isUsed: false, tags: [] },
+        { id: 'item6', content: 'User authentication', isUsed: true, tags: ['tag2'] },
+        { id: 'item7', content: 'Export to PDF', isUsed: false, tags: [] },
+        { id: 'item8', content: 'Mobile app version', isUsed: false, tags: [] },
       ]
     }
   ],
   mainList: [
     {
-      id: 'main1',
+      id: 'item3',
       content: 'Schedule team meeting',
       sourceListId: 'list1',
-      tags: ['tag1', 'source-list1'],
+      tags: ['tag1'],
       order: 1
     },
     {
-      id: 'main2', 
+      id: 'item6', 
       content: 'User authentication',
       sourceListId: 'list2',
-      tags: ['tag2', 'source-list2'],
+      tags: ['tag2'],
       order: 2
     }
   ]
@@ -94,21 +94,6 @@ const createMockTags = (): Tag[] => [
     color: '#8b5cf6',
     createdAt: new Date(),
     usageCount: 0
-  },
-  // Source list tags
-  {
-    id: 'source-list1',
-    name: 'To-Do Items',
-    color: '#6b7280',
-    createdAt: new Date(),
-    usageCount: 1
-  },
-  {
-    id: 'source-list2',
-    name: 'Feature Ideas',
-    color: '#6b7280',
-    createdAt: new Date(),
-    usageCount: 1
   }
 ];
 
@@ -283,30 +268,6 @@ function App() {
     }));
   };
 
-  // Helper function to get or create source list tag
-  const getOrCreateSourceListTag = (listId: string, listName: string): string => {
-    // Look for existing source tag
-    const existingTag = appState.tagPool.find(tag => tag.name === listName);
-    if (existingTag) {
-      return existingTag.id;
-    }
-
-    // Create new source tag
-    const newTag: Tag = {
-      id: `source-${listId}`,
-      name: listName,
-      color: '#6b7280', // Gray color for source tags
-      createdAt: new Date(),
-      usageCount: 0
-    };
-
-    setAppState(prev => ({
-      ...prev,
-      tagPool: [...prev.tagPool, newTag]
-    }));
-
-    return newTag.id;
-  };
 
   const handleMoveToMainList = (listId: string, itemId: string) => {
     if (!appState.currentProject) return;
@@ -316,14 +277,11 @@ function App() {
     
     if (!sourceItem || sourceItem.isUsed) return;
 
-    // Get or create source list tag
-    const sourceTagId = getOrCreateSourceListTag(listId, sourceList!.name);
-
     const newMainItem: MainListItem = {
-      id: Date.now().toString(),
+      id: sourceItem.id, // Preserve original item ID for tag synchronization
       content: sourceItem.content,
       sourceListId: listId,
-      tags: [sourceTagId], // Add source list tag
+      tags: [...sourceItem.tags], // Copy tags from input item
       order: appState.currentProject.mainList.length + 1
     };
 
@@ -563,18 +521,43 @@ function App() {
       tagPool: prev.tagPool.filter(tag => tag.id !== tagId),
       currentProject: prev.currentProject ? {
         ...prev.currentProject,
+        // Remove tag from main list items
         mainList: prev.currentProject.mainList.map(item => ({
           ...item,
           tags: item.tags.filter(id => id !== tagId)
+        })),
+        // Remove tag from input list items
+        inputLists: prev.currentProject.inputLists.map(list => ({
+          ...list,
+          items: list.items.map(item => ({
+            ...item,
+            tags: item.tags.filter(id => id !== tagId)
+          }))
         }))
       } : null
     }));
   };
 
   const handleAddTag = (itemIds: string[], tagId: string) => {
+    // Helper function to find item in both input lists and main list
+    const findItem = (itemId: string) => {
+      if (!appState.currentProject) return null;
+      
+      // Check main list first
+      const mainItem = appState.currentProject.mainList.find(i => i.id === itemId);
+      if (mainItem) return mainItem;
+      
+      // Check input lists
+      for (const list of appState.currentProject.inputLists) {
+        const inputItem = list.items.find(i => i.id === itemId);
+        if (inputItem) return inputItem;
+      }
+      return null;
+    };
+
     // Count how many items don't already have this tag
     const newUsageCount = itemIds.filter(itemId => {
-      const item = appState.currentProject?.mainList.find(i => i.id === itemId);
+      const item = findItem(itemId);
       return item && !item.tags.includes(tagId);
     }).length;
 
@@ -582,12 +565,23 @@ function App() {
       ...prev,
       currentProject: prev.currentProject ? {
         ...prev.currentProject,
+        // Update main list items
         mainList: prev.currentProject.mainList.map(item =>
           itemIds.includes(item.id) ? {
             ...item,
             tags: [...new Set([...item.tags, tagId])]
           } : item
-        )
+        ),
+        // Update input list items
+        inputLists: prev.currentProject.inputLists.map(list => ({
+          ...list,
+          items: list.items.map(item =>
+            itemIds.includes(item.id) ? {
+              ...item,
+              tags: [...new Set([...item.tags, tagId])]
+            } : item
+          )
+        }))
       } : null,
       tagPool: prev.tagPool.map(tag =>
         tag.id === tagId ? { ...tag, usageCount: tag.usageCount + newUsageCount } : tag
@@ -596,9 +590,25 @@ function App() {
   };
 
   const handleRemoveTag = (itemIds: string[], tagId: string) => {
+    // Helper function to find item in both input lists and main list
+    const findItem = (itemId: string) => {
+      if (!appState.currentProject) return null;
+      
+      // Check main list first
+      const mainItem = appState.currentProject.mainList.find(i => i.id === itemId);
+      if (mainItem) return mainItem;
+      
+      // Check input lists
+      for (const list of appState.currentProject.inputLists) {
+        const inputItem = list.items.find(i => i.id === itemId);
+        if (inputItem) return inputItem;
+      }
+      return null;
+    };
+
     // Count how many items actually have this tag
     const actualRemovalCount = itemIds.filter(itemId => {
-      const item = appState.currentProject?.mainList.find(i => i.id === itemId);
+      const item = findItem(itemId);
       return item && item.tags.includes(tagId);
     }).length;
 
@@ -606,12 +616,23 @@ function App() {
       ...prev,
       currentProject: prev.currentProject ? {
         ...prev.currentProject,
+        // Update main list items
         mainList: prev.currentProject.mainList.map(item =>
           itemIds.includes(item.id) ? {
             ...item,
             tags: item.tags.filter(id => id !== tagId)
           } : item
-        )
+        ),
+        // Update input list items
+        inputLists: prev.currentProject.inputLists.map(list => ({
+          ...list,
+          items: list.items.map(item =>
+            itemIds.includes(item.id) ? {
+              ...item,
+              tags: item.tags.filter(id => id !== tagId)
+            } : item
+          )
+        }))
       } : null,
       tagPool: prev.tagPool.map(tag =>
         tag.id === tagId ? { ...tag, usageCount: Math.max(0, tag.usageCount - actualRemovalCount) } : tag
@@ -722,14 +743,11 @@ function App() {
     
     if (!sourceItem || sourceItem.isUsed) return;
 
-    // Get or create source list tag
-    const sourceTagId = getOrCreateSourceListTag(sourceListId, sourceList!.name);
-
     const newMainItem: MainListItem = {
-      id: Date.now().toString(),
+      id: sourceItem.id, // Preserve original item ID for tag synchronization
       content: sourceItem.content,
       sourceListId: sourceListId,
-      tags: [sourceTagId], // Add source list tag
+      tags: [...sourceItem.tags], // Copy tags from input item
       order: position
     };
 

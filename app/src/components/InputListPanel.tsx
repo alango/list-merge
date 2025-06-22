@@ -1,6 +1,163 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import type { InputList, InputListItem } from '../types/index';
+import type { InputList, InputListItem, Tag } from '../types/index';
+
+// Fuzzy matching function
+const fuzzyMatch = (query: string, text: string): number => {
+  const queryLower = query.toLowerCase();
+  const textLower = text.toLowerCase();
+  
+  if (textLower === queryLower) return 100;
+  if (textLower.startsWith(queryLower)) return 90;
+  if (textLower.includes(queryLower)) return 70;
+  
+  let queryIndex = 0;
+  let score = 0;
+  
+  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
+    if (textLower[i] === queryLower[queryIndex]) {
+      score += 10;
+      queryIndex++;
+    }
+  }
+  
+  return queryIndex === queryLower.length ? score : 0;
+};
+
+// Tag input component
+interface TagInputProps {
+  availableTags: Tag[];
+  onAddTag: (tagId: string) => void;
+  onCreateAndAddTag: (name: string, color: string) => void;
+  onClose: () => void;
+}
+
+const TagInput: React.FC<TagInputProps> = ({
+  availableTags,
+  onAddTag,
+  onCreateAndAddTag,
+  onClose
+}) => {
+  const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(true);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const suggestions = React.useMemo(() => {
+    if (query.length < 1) return [];
+    
+    const filtered = availableTags
+      .map(tag => ({
+        tag,
+        score: fuzzyMatch(query, tag.name)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score || b.tag.usageCount - a.tag.usageCount)
+      .slice(0, 6);
+
+    return filtered.map(item => item.tag);
+  }, [query, availableTags]);
+
+  const canCreateNew = query.length >= 2 && 
+    !availableTags.some(tag => tag.name.toLowerCase() === query.toLowerCase());
+
+  const allOptions = canCreateNew 
+    ? [...suggestions, { id: 'create-new', name: `Create "${query}"`, color: '#10b981' } as Tag]
+    : suggestions;
+
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [suggestions.length]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (allOptions.length > 0) {
+          setHighlightedIndex((prev) => 
+            prev < allOptions.length - 1 ? prev + 1 : 0
+          );
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (allOptions.length > 0) {
+          setHighlightedIndex((prev) => 
+            prev > 0 ? prev - 1 : allOptions.length - 1
+          );
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (allOptions.length > 0) {
+          handleSelectOption(allOptions[highlightedIndex]);
+        }
+        break;
+      case 'Escape':
+        onClose();
+        break;
+    }
+  };
+
+  const handleSelectOption = (option: Tag) => {
+    if (option.id === 'create-new') {
+      onCreateAndAddTag(query, '#10b981'); // Default color
+    } else {
+      onAddTag(option.id);
+    }
+    onClose();
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Search tags..."
+        className="w-24 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
+      
+      {isOpen && allOptions.length > 0 && (
+        <div className="absolute z-50 mt-1 w-48 max-h-48 overflow-y-auto bg-white rounded-md shadow-lg border border-gray-200">
+          {allOptions.map((option, index) => (
+            <button
+              key={option.id}
+              onClick={() => handleSelectOption(option)}
+              className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center space-x-2 ${
+                index === highlightedIndex ? 'bg-blue-50' : ''
+              }`}
+            >
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: option.color }}
+              />
+              <span className="truncate">{option.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Drag data interface
 interface DragData {
@@ -16,6 +173,9 @@ interface DraggableInputItemProps {
   listId: string;
   isEditing: boolean;
   editingContent: string;
+  isSelected: boolean;
+  isMultiSelectActive: boolean;
+  tagPool: Tag[];
   onStartEdit: (item: InputListItem) => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
@@ -23,6 +183,10 @@ interface DraggableInputItemProps {
   onKeyPress: (e: React.KeyboardEvent, action: () => void) => void;
   onMoveToMain: (itemId: string) => void;
   onDeleteItem: (itemId: string) => void;
+  onSelect: (isMultiSelect: boolean) => void;
+  onAddTag: (tagId: string) => void;
+  onRemoveTag: (tagId: string) => void;
+  onCreateAndAddTag: (name: string, color: string) => void;
 }
 
 const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
@@ -30,14 +194,23 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
   listId,
   isEditing,
   editingContent,
+  isSelected,
+  isMultiSelectActive,
+  tagPool,
   onStartEdit,
   onSaveEdit,
   onCancelEdit,
   onEditContentChange,
   onKeyPress,
   onMoveToMain,
-  onDeleteItem
+  onDeleteItem,
+  onSelect,
+  onAddTag,
+  onRemoveTag,
+  onCreateAndAddTag
 }) => {
+  const [showTagInput, setShowTagInput] = useState(false);
+
   const dragData: DragData = {
     type: 'input-item',
     itemId: item.id,
@@ -48,7 +221,7 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setDragNodeRef,
     isDragging,
     transform
   } = useDraggable({
@@ -62,18 +235,31 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
     opacity: isDragging ? 0.5 : 1,
   } : undefined;
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't select if clicking on buttons, inputs, or interactive elements
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || 
+        target.closest('button') || target.closest('.tag-input')) {
+      return;
+    }
+    
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+    onSelect(isMultiSelect);
+  };
+
   return (
     <div
-      ref={setNodeRef}
       style={style}
-      className={`group relative p-3 border border-gray-200 rounded-md ${
-        item.isUsed 
-          ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
+      onClick={handleClick}
+      className={`group relative p-3 border rounded-md cursor-pointer transition-colors ${
+        isSelected
+          ? 'border-blue-500 bg-blue-50'
+          : item.isUsed 
+          ? 'border-gray-200 bg-gray-50 text-gray-400' 
           : isDragging
-          ? 'bg-blue-50 border-blue-300'
-          : 'bg-white hover:bg-gray-50 cursor-grab active:cursor-grabbing'
+          ? 'border-blue-300 bg-blue-50'
+          : 'border-gray-200 bg-white hover:bg-gray-50'
       }`}
-      {...(item.isUsed || isEditing ? {} : { ...attributes, ...listeners })}
     >
       {isEditing ? (
         <div className="flex space-x-2">
@@ -89,35 +275,106 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
           <button onClick={onCancelEdit} className="text-xs text-gray-500">Cancel</button>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <span className="flex-1 select-none">{item.content}</span>
-          <div className="opacity-0 group-hover:opacity-100 flex space-x-1 ml-2">
-            {!item.isUsed && (
-              <button
-                onClick={() => onMoveToMain(item.id)}
-                className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded"
-                title="Move to main list"
-              >
-                →
-              </button>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-gray-900 truncate select-none">
+            {item.content}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1 items-center">
+            {item.tags.map((tagId) => {
+              const tag = tagPool.find(t => t.id === tagId);
+              if (!tag) return null;
+              
+              return (
+                <span
+                  key={tagId}
+                  className="group/tag inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white relative"
+                  style={{ backgroundColor: tag.color }}
+                >
+                  {tag.name}
+                  {!item.isUsed && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveTag(tagId);
+                      }}
+                      className="absolute -top-1 -right-1 opacity-0 group-hover/tag:opacity-100 hover:bg-black hover:bg-opacity-40 rounded-full w-4 h-4 flex items-center justify-center text-xs transition-opacity bg-gray-600"
+                      title="Remove tag"
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+            {!item.isUsed && !isMultiSelectActive && (
+              showTagInput ? (
+                <TagInput
+                  availableTags={tagPool}
+                  onAddTag={onAddTag}
+                  onCreateAndAddTag={onCreateAndAddTag}
+                  onClose={() => setShowTagInput(false)}
+                />
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowTagInput(true);
+                  }}
+                  className="inline-flex items-center px-2 py-1 border border-dashed border-gray-300 rounded-full text-xs text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                  title="Add tag"
+                >
+                  + Add tag
+                </button>
+              )
             )}
-            <button
-              onClick={() => onStartEdit(item)}
-              className="text-xs text-gray-600 hover:text-gray-700 px-2 py-1 rounded"
-              title="Edit item"
-            >
-              ✏️
-            </button>
-            <button
-              onClick={() => onDeleteItem(item.id)}
-              className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded"
-              title="Delete item"
-            >
-              🗑️
-            </button>
           </div>
         </div>
       )}
+      
+      {/* Action buttons */}
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 flex items-center space-x-1">
+        {!item.isUsed && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onMoveToMain(item.id); }}
+            className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded"
+            title="Move to main list"
+          >
+            →
+          </button>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onStartEdit(item); }}
+          className="text-xs text-gray-600 hover:text-gray-700 px-2 py-1 rounded"
+          title="Edit item"
+        >
+          ✏️
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+          className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded"
+          title="Delete item"
+        >
+          🗑️
+        </button>
+        
+        {/* Drag handle - make it larger and more prominent */}
+        {!item.isUsed && !isEditing && (
+          <div 
+            ref={setDragNodeRef}
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing px-2 py-1 ml-1 rounded hover:bg-gray-100"
+            {...attributes}
+            {...listeners}
+            title="Drag to move to main list"
+          >
+            <div className="w-5 h-5 text-gray-400 hover:text-gray-600">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+              </svg>
+            </div>
+          </div>
+        )}
+      </div>
+      
       {item.isUsed && (
         <div className="absolute top-1 right-1 text-xs text-gray-400 bg-gray-100 px-1 rounded">
           Used
@@ -130,6 +387,8 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
 interface InputListPanelProps {
   inputLists: InputList[];
   activeListId: string | null;
+  selectedItems: string[];
+  tagPool: Tag[];
   onSelectList: (listId: string) => void;
   onAddList: () => void;
   onImportList: (listId: string) => void;
@@ -139,11 +398,17 @@ interface InputListPanelProps {
   onRenameList: (listId: string, newName: string) => void;
   onDeleteList: (listId: string) => void;
   onMoveToMain: (listId: string, itemId: string) => void;
+  onSelectItem: (itemId: string, isMultiSelect: boolean) => void;
+  onAddTag: (itemIds: string[], tagId: string) => void;
+  onRemoveTag: (itemIds: string[], tagId: string) => void;
+  onCreateTag: (name: string, color: string) => string | null;
 }
 
 export const InputListPanel: React.FC<InputListPanelProps> = ({
   inputLists,
   activeListId,
+  selectedItems,
+  tagPool,
   onSelectList,
   onAddList,
   onImportList,
@@ -152,7 +417,11 @@ export const InputListPanel: React.FC<InputListPanelProps> = ({
   onDeleteItem,
   onRenameList,
   onDeleteList,
-  onMoveToMain
+  onMoveToMain,
+  onSelectItem,
+  onAddTag,
+  onRemoveTag,
+  onCreateTag
 }) => {
   return (
     <div className="panel h-full flex flex-col">
@@ -191,6 +460,8 @@ export const InputListPanel: React.FC<InputListPanelProps> = ({
           {activeListId ? (
             <InputListContent 
               list={inputLists.find(l => l.id === activeListId)!}
+              selectedItems={selectedItems}
+              tagPool={tagPool}
               onImport={() => onImportList(activeListId)}
               onAddItem={(content) => onAddItem(activeListId, content)}
               onEditItem={(itemId, content) => onEditItem(activeListId, itemId, content)}
@@ -198,6 +469,10 @@ export const InputListPanel: React.FC<InputListPanelProps> = ({
               onRenameList={(newName) => onRenameList(activeListId, newName)}
               onDeleteList={() => onDeleteList(activeListId)}
               onMoveToMain={(itemId) => onMoveToMain(activeListId, itemId)}
+              onSelectItem={onSelectItem}
+              onAddTag={onAddTag}
+              onRemoveTag={onRemoveTag}
+              onCreateTag={onCreateTag}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
@@ -215,6 +490,8 @@ export const InputListPanel: React.FC<InputListPanelProps> = ({
 
 interface InputListContentProps {
   list: InputList;
+  selectedItems: string[];
+  tagPool: Tag[];
   onImport: () => void;
   onAddItem: (content: string) => void;
   onEditItem: (itemId: string, content: string) => void;
@@ -222,17 +499,27 @@ interface InputListContentProps {
   onRenameList: (newName: string) => void;
   onDeleteList: () => void;
   onMoveToMain: (itemId: string) => void;
+  onSelectItem: (itemId: string, isMultiSelect: boolean) => void;
+  onAddTag: (itemIds: string[], tagId: string) => void;
+  onRemoveTag: (itemIds: string[], tagId: string) => void;
+  onCreateTag: (name: string, color: string) => string | null;
 }
 
 const InputListContent: React.FC<InputListContentProps> = ({ 
   list, 
+  selectedItems,
+  tagPool,
   onImport, 
   onAddItem, 
   onEditItem, 
   onDeleteItem, 
   onRenameList, 
   onDeleteList, 
-  onMoveToMain 
+  onMoveToMain,
+  onSelectItem,
+  onAddTag,
+  onRemoveTag,
+  onCreateTag
 }) => {
   const [newItemContent, setNewItemContent] = React.useState('');
   const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
@@ -360,6 +647,9 @@ const InputListContent: React.FC<InputListContentProps> = ({
               listId={list.id}
               isEditing={editingItemId === item.id}
               editingContent={editingContent}
+              isSelected={selectedItems.includes(item.id)}
+              isMultiSelectActive={selectedItems.length > 1}
+              tagPool={tagPool}
               onStartEdit={handleStartEdit}
               onSaveEdit={handleSaveEdit}
               onCancelEdit={handleCancelEdit}
@@ -367,6 +657,15 @@ const InputListContent: React.FC<InputListContentProps> = ({
               onKeyPress={handleKeyPress}
               onMoveToMain={onMoveToMain}
               onDeleteItem={onDeleteItem}
+              onSelect={(isMultiSelect) => onSelectItem(item.id, isMultiSelect)}
+              onAddTag={(tagId) => onAddTag([item.id], tagId)}
+              onRemoveTag={(tagId) => onRemoveTag([item.id], tagId)}
+              onCreateAndAddTag={(name, color) => {
+                const newTagId = onCreateTag(name, color);
+                if (newTagId) {
+                  onAddTag([item.id], newTagId);
+                }
+              }}
             />
           ))
         )}

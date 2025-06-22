@@ -75,6 +75,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         <InputListPanel
           inputLists={currentProject.inputLists}
           activeListId={appState.ui.activeInputList}
+          selectedItems={appState.ui.selectedItems}
+          tagPool={appState.tagPool}
           onSelectList={onSelectInputList}
           onAddList={onAddInputList}
           onImportList={onImportToList}
@@ -84,6 +86,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           onRenameList={onRenameList}
           onDeleteList={onDeleteList}
           onMoveToMain={onMoveToMainList}
+          onSelectItem={onSelectMainItem}
+          onAddTag={onAddTag}
+          onRemoveTag={onRemoveTag}
+          onCreateTag={onCreateTag}
         />
       </div>
 

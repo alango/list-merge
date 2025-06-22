@@ -4,6 +4,7 @@ export interface InputListItem {
   id: string;
   content: string;
   isUsed: boolean; // For greying out used items
+  tags: string[]; // Tags associated with this item
 }
 
 export interface InputList {

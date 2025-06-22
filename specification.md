@@ -28,10 +28,10 @@ List Merge is a web-based application that allows users to merge multiple input 
 - **List Completion Status**: Input lists show visual indication when all items have been processed
 
 ### 2.4 Tagging System
-- **Source Tags**: Automatically applied tags showing which input list each item originated from
 - **Custom Tags**: Users can create and manage freeform text tags with customizable colors
 - **Tag Pool**: Dedicated area displaying all created tags that can be dragged onto items
-- **Tag Assignment**: Tags can be applied by dragging from tag pool to items or through the properties panel
+- **Bidirectional Tag Synchronization**: Tags are synchronized between input list items and main list items using shared item IDs
+- **Tag Assignment**: Tags can be applied by dragging from tag pool to items or through inline tag management
 - **Multi-Select Tagging**: Users can select multiple items and apply tags to all selected items simultaneously
 - **Visual Tag Display**: Tags are visually distinct with customizable colors and clearly labeled on items
 - **Duplicate Prevention**: System prevents creation of duplicate tag names within a project
@@ -40,6 +40,7 @@ List Merge is a web-based application that allows users to merge multiple input 
 - **Tag Editing**: Tags can be edited (name and color) with automatic updates to all items using those tags
 - **Hover Actions**: Edit and delete actions appear on hover for each tag in the tag pool
 - **Inline Editing**: Tags can be edited directly in the tag pool using an inline form with keyboard shortcuts
+- **Input List Tag Management**: Full tag management functionality available on input list items with feature parity to main list items
 
 ### 2.5 Import and Export Functionality
 - **Import Formats**: 
@@ -67,6 +68,9 @@ List Merge is a web-based application that allows users to merge multiple input 
 - **Item Count Display**: Shows number of items in each list and completion status
 - **Visual States**: Items are greyed out after being added to main list
 - **List Completion Indicator**: Visual indication when all items from a list have been processed
+- **Full Tag Management**: Complete tag functionality including display, addition, removal, and creation
+- **Multi-Select Support**: Ability to select multiple items within input lists for bulk operations
+- **Tag Synchronization**: Tags added to input list items automatically appear on corresponding main list items
 
 ### 3.3 Main List Panel
 - **Drag Drop Zone**: Clear visual indication of drop-acceptable areas
@@ -106,25 +110,27 @@ List Merge is a web-based application that allows users to merge multiple input 
 ### 4.3 Building the Main List
 1. User selects an item from any input list (that hasn't been added yet)
 2. User drags the item to the main list panel
-3. System copies the item to the main list with automatic source tagging
+3. System copies the item to the main list preserving the original item ID and any existing tags
 4. Source item in input list becomes greyed out and non-draggable
 5. User can reorder items in the main list by dragging
 6. User can add additional tags by:
    - Clicking the "Add tag" button on individual items for inline tag management
    - Dragging tags from the tag pool onto items for bulk operations
    - Selecting multiple items and dragging tags from the tag pool for bulk application
+7. Tags added to main list items automatically appear on corresponding input list items due to bidirectional synchronization
 
 ### 4.4 Tag Management Workflow
-1. User creates new tags either in the tag pool panel or inline when adding tags to items
+1. User creates new tags either in the tag pool panel or inline when adding tags to items (works in both input lists and main list)
 2. User can customize tag colors during creation or later through tag management interface
 3. Tags can be applied to items by:
-   - Clicking "Add tag" button on individual items for inline tag management with autocomplete
+   - Clicking "Add tag" button on individual items for inline tag management with autocomplete (available on both input and main list items)
    - Dragging tags from pool to individual items
    - Selecting multiple items and dragging tags from the tag pool for bulk application
    - Creating new tags inline which are automatically applied to the current item
 4. Tags can be removed from items by:
-   - Hovering over tags on items to reveal remove button in top-right corner
+   - Hovering over tags on items to reveal remove button in top-right corner (available on both input and main list items)
    - Clicking the "×" button that appears on hover
+   - Note: Tag removal is disabled on used input list items but tags remain visible
 5. System maintains a master list of all created tags for reuse and prevents duplicates
 6. Tags can be edited (name and color) or deleted from the tag pool using hover actions:
    - Hover over any tag in the tag pool to reveal edit and delete icons
@@ -132,6 +138,7 @@ List Merge is a web-based application that allows users to merge multiple input 
    - Use Enter to save changes or Escape to cancel editing
    - All items using the edited tag are automatically updated with new name/color
 7. Inline tag management includes autocomplete with fuzzy search and real-time suggestions
+8. **Bidirectional Synchronization**: Tags added to items in either input lists or main list are automatically synchronized to the corresponding item in the other location using shared item IDs
 
 
 ### 4.5 Finalizing and Exporting
