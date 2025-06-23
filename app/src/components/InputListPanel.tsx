@@ -39,7 +39,7 @@ const TagInput: React.FC<TagInputProps> = ({
   onClose
 }) => {
   const [query, setQuery] = useState('');
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen] = useState(true);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -560,7 +560,7 @@ const InputListContent: React.FC<InputListContentProps> = ({
     }
   };
 
-  const handleStartEdit = (item: any) => {
+  const handleStartEdit = (item: InputListItem) => {
     setEditingItemId(item.id);
     setEditingContent(item.content);
   };

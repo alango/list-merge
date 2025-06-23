@@ -180,7 +180,8 @@ function App() {
     const newItem: InputListItem = {
       id: Date.now().toString(),
       content,
-      isUsed: false
+      isUsed: false,
+      tags: []
     };
 
     setAppState(prev => ({
@@ -304,11 +305,11 @@ function App() {
   };
 
   // Helper function to find item in both input lists and main lists with context
-  const findItemWithContext = (itemId: string, currentProject: any) => {
+  const findItemWithContext = (itemId: string, currentProject: Project) => {
     if (!currentProject) return null;
     
     // Check main list first
-    const mainItemIndex = currentProject.mainList.findIndex((item: any) => item.id === itemId);
+    const mainItemIndex = currentProject.mainList.findIndex((item: MainListItem) => item.id === itemId);
     if (mainItemIndex !== -1) {
       return {
         type: 'main-list' as const,
@@ -320,7 +321,7 @@ function App() {
     
     // Check input lists
     for (const inputList of currentProject.inputLists) {
-      const itemIndex = inputList.items.findIndex((item: any) => item.id === itemId);
+      const itemIndex = inputList.items.findIndex((item: InputListItem) => item.id === itemId);
       if (itemIndex !== -1) {
         return {
           type: 'input-list' as const,

@@ -39,7 +39,7 @@ const TagInput: React.FC<TagInputProps> = ({
   onClose
 }) => {
   const [query, setQuery] = useState('');
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen] = useState(true);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -217,7 +217,6 @@ interface MainListPanelProps {
   tagPool: Tag[];
   onSelectItem: (itemId: string, isMultiSelect: boolean, isShiftSelect?: boolean) => void;
   onRemoveItem: (itemId: string) => void;
-  onReorderItems: (startIndex: number, endIndex: number) => void;
   onMoveUp: (itemId: string) => void;
   onMoveDown: (itemId: string) => void;
   onAddTag: (itemIds: string[], tagId: string) => void;
@@ -231,7 +230,6 @@ export const MainListPanel: React.FC<MainListPanelProps> = ({
   tagPool,
   onSelectItem,
   onRemoveItem,
-  onReorderItems,
   onMoveUp,
   onMoveDown,
   onAddTag,

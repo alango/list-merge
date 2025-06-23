@@ -52,9 +52,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   onClearSelection
 }) => {
   const currentProject = appState.currentProject;
-  const selectedMainItems = currentProject?.mainList.filter(item => 
-    appState.ui.selectedItems.includes(item.id)
-  ) || [];
 
   if (!currentProject) {
     return (
@@ -101,7 +98,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           tagPool={appState.tagPool}
           onSelectItem={onSelectMainItem}
           onRemoveItem={onRemoveFromMainList}
-          onReorderItems={onReorderMainItems}
           onAddTag={onAddTag}
           onRemoveTag={onRemoveTag}
           onCreateTag={onCreateTag}
