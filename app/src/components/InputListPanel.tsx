@@ -1,28 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { InputList, InputListItem, Tag } from '../types/index';
-
-// Fuzzy matching function
-const fuzzyMatch = (query: string, text: string): number => {
-  const queryLower = query.toLowerCase();
-  const textLower = text.toLowerCase();
-  
-  if (textLower === queryLower) return 100;
-  if (textLower.startsWith(queryLower)) return 90;
-  if (textLower.includes(queryLower)) return 70;
-  
-  let queryIndex = 0;
-  let score = 0;
-  
-  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
-    if (textLower[i] === queryLower[queryIndex]) {
-      score += 10;
-      queryIndex++;
-    }
-  }
-  
-  return queryIndex === queryLower.length ? score : 0;
-};
+import { fuzzyMatch } from '../utils/fuzzyMatch';
 
 // Tag input component
 interface TagInputProps {
