@@ -4,6 +4,7 @@ import type { DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core'
 import { ProjectManager } from './components/ProjectManager';
 import { Workspace } from './components/Workspace';
 import type { AppState, Project, InputList, MainListItem, Tag, InputListItem } from './types/index';
+import { validateTag, validateTagForEdit } from './utils/tagValidation';
 import './App.css';
 
 // Drag and drop data interfaces
@@ -450,44 +451,18 @@ function App() {
     }));
   };
 
-  // Tag validation function
-  const validateTag = (name: string): { isValid: boolean; error?: string } => {
-    // Length validation
-    if (name.length < 1) {
-      return { isValid: false, error: 'Tag name cannot be empty' };
-    }
-    if (name.length > 50) {
-      return { isValid: false, error: 'Tag name cannot exceed 50 characters' };
-    }
-
-    // Trim whitespace
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0) {
-      return { isValid: false, error: 'Tag name cannot be just whitespace' };
-    }
-
-    // Duplicate prevention (case-insensitive)
-    const isDuplicate = appState.tagPool.some(tag => 
-      tag.name.toLowerCase() === trimmedName.toLowerCase()
+  // Tag validation wrapper
+  const validateTagName = (name: string) => {
+    return validateTag(
+      name, 
+      appState.tagPool, 
+      appState.currentProject?.inputLists || []
     );
-    if (isDuplicate) {
-      return { isValid: false, error: 'A tag with this name already exists' };
-    }
-
-    // Reserved names (source list names)
-    const isReserved = appState.currentProject?.inputLists.some(list =>
-      list.name.toLowerCase() === trimmedName.toLowerCase()
-    );
-    if (isReserved) {
-      return { isValid: false, error: 'Cannot use source list names as tag names' };
-    }
-
-    return { isValid: true };
   };
 
   // Tag management
   const handleCreateTag = (name: string, color: string): string | null => {
-    const validation = validateTag(name);
+    const validation = validateTagName(name);
     if (!validation.isValid) {
       console.error('Tag validation failed:', validation.error);
       // TODO: Show user-friendly error message
@@ -512,7 +487,7 @@ function App() {
 
   const handleEditTag = (tagId: string, name: string, color: string) => {
     // For editing, we need to exclude the current tag from duplicate check
-    const validation = validateTagForEdit(name, tagId);
+    const validation = validateTagForEditName(name, tagId);
     if (!validation.isValid) {
       console.error('Tag validation failed:', validation.error);
       return;
@@ -526,30 +501,14 @@ function App() {
     }));
   };
 
-  // Tag validation for editing (excludes current tag from duplicate check)
-  const validateTagForEdit = (name: string, tagId: string): { isValid: boolean; error?: string } => {
-    // Length validation
-    if (name.length < 1) {
-      return { isValid: false, error: 'Tag name cannot be empty' };
-    }
-    if (name.length > 50) {
-      return { isValid: false, error: 'Tag name cannot exceed 50 characters' };
-    }
-
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0) {
-      return { isValid: false, error: 'Tag name cannot be just whitespace' };
-    }
-
-    // Duplicate prevention (excluding current tag)
-    const isDuplicate = appState.tagPool.some(tag => 
-      tag.id !== tagId && tag.name.toLowerCase() === trimmedName.toLowerCase()
+  // Tag validation wrapper for editing
+  const validateTagForEditName = (name: string, tagId: string) => {
+    return validateTagForEdit(
+      name, 
+      tagId,
+      appState.tagPool, 
+      appState.currentProject?.inputLists || []
     );
-    if (isDuplicate) {
-      return { isValid: false, error: 'A tag with this name already exists' };
-    }
-
-    return { isValid: true };
   };
 
   const handleDeleteTag = (tagId: string) => {
