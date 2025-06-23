@@ -332,7 +332,7 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
                 </span>
               );
             })}
-            {!item.isUsed && !isMultiSelectActive && (
+            {!isMultiSelectActive && (
               showTagInput ? (
                 <TagInput
                   availableTags={tagPool}
