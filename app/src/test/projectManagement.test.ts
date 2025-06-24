@@ -714,10 +714,10 @@ describe('Project Validation & Structure', () => {
       const invalidProject = {
         id: '',
         name: '',
-        createdAt: null as any,
-        modifiedAt: null as any,
-        inputLists: null as any,
-        mainList: null as any
+        createdAt: null as unknown as Date,
+        modifiedAt: null as unknown as Date,
+        inputLists: null as unknown as InputList[],
+        mainList: null as unknown as MainListItem[]
       };
 
       const validation = projectManager.validateProject(invalidProject);
@@ -764,9 +764,9 @@ describe('Project Validation & Structure', () => {
           items: [
             { id: '', content: '', isUsed: false, tags: [] }
           ]
-        } as any
+        } as InputList
       ], [
-        { id: '', content: '', sourceListId: '', order: 'invalid' as any, tags: [] }
+        { id: '', content: '', sourceListId: '', order: 'invalid' as unknown as number, tags: [] }
       ]);
 
       const validation = projectManager.validateProject(invalidProject);
@@ -930,10 +930,10 @@ describe('Project Edge Cases & Error Handling', () => {
       const corruptProject = {
         id: 'corrupt1',
         name: 'Corrupt Project',
-        createdAt: null as any,
-        modifiedAt: undefined as any,
-        inputLists: undefined as any,
-        mainList: null as any
+        createdAt: null as unknown as Date,
+        modifiedAt: undefined as unknown as Date,
+        inputLists: undefined as unknown as InputList[],
+        mainList: null as unknown as MainListItem[]
       };
 
       const validation = projectManager.validateProject(corruptProject);
@@ -1022,7 +1022,7 @@ describe('Project Edge Cases & Error Handling', () => {
       ]);
 
       // Simulate circular reference
-      (project as any).circularRef = project;
+      (project as Project & { circularRef?: Project }).circularRef = project;
 
       // Should not crash validation (though circular ref won't be detected by our simple validator)
       const validation = projectManager.validateProject(project);
@@ -1052,7 +1052,7 @@ describe('Project Edge Cases & Error Handling', () => {
 
       // Should not crash
       expect(() => {
-        const validation = projectManager.validateProject(malformedProject as any);
+        const validation = projectManager.validateProject(malformedProject as unknown as Project);
         expect(validation.isValid).toBe(false);
       }).not.toThrow();
     });

@@ -40,10 +40,10 @@ const createProject = (id: string, name: string, inputLists: InputList[] = [], m
   mainList
 });
 
-// File processing results
-interface ImportResult {
+// File processing results  
+interface ImportResult<T = string[]> {
   success: boolean;
-  data?: any;
+  data?: T;
   error?: string;
   itemCount?: number;
   warnings?: string[];
@@ -66,7 +66,7 @@ class FileProcessor {
   }
 
   // CSV Import - single row format with comma-separated values
-  importCSV(csvContent: string): ImportResult {
+  importCSV(csvContent: string): ImportResult<string[]> {
     try {
       if (!csvContent.trim()) {
         return { success: false, error: 'CSV file is empty' };
@@ -106,7 +106,7 @@ class FileProcessor {
   }
 
   // Plain text import - line-by-line format
-  importPlainText(textContent: string): ImportResult {
+  importPlainText(textContent: string): ImportResult<string[]> {
     try {
       if (!textContent || textContent.length === 0) {
         return { success: false, error: 'Text file is empty' };
@@ -149,7 +149,7 @@ class FileProcessor {
   }
 
   // JSON project import - complete project data
-  importProjectJSON(jsonContent: string): ImportResult {
+  importProjectJSON(jsonContent: string): ImportResult<Project> {
     try {
       if (!jsonContent.trim()) {
         return { success: false, error: 'JSON file is empty' };
@@ -323,15 +323,15 @@ class FileProcessor {
   }
 
   // Helper: Validate project JSON structure
-  private validateProjectJSON(data: any): { isValid: boolean; errors: string[] } {
+  private validateProjectJSON(data: unknown): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    if (!data.project) {
+    if (!data || typeof data !== 'object' || !('project' in data)) {
       errors.push('Missing project data');
       return { isValid: false, errors };
     }
 
-    const project = data.project;
+    const project = (data as { project: Record<string, unknown> }).project;
 
     if (!project.id) errors.push('Missing project ID');
     if (!project.name) errors.push('Missing project name');
@@ -344,16 +344,17 @@ class FileProcessor {
   }
 
   // Helper: Restore Date objects from JSON
-  private restoreProjectDates(projectData: any): Project {
+  private restoreProjectDates(projectData: Record<string, unknown>): Project {
+    const project = projectData.project as Record<string, unknown>;
     return {
-      ...projectData.project,
-      createdAt: new Date(projectData.project.createdAt),
-      modifiedAt: new Date(projectData.project.modifiedAt),
-      tags: projectData.project.tags?.map((tag: any) => ({
+      ...project,
+      createdAt: new Date(project.createdAt as string),
+      modifiedAt: new Date(project.modifiedAt as string),
+      tags: (project.tags as Array<Record<string, unknown>>)?.map((tag) => ({
         ...tag,
-        createdAt: new Date(tag.createdAt)
+        createdAt: new Date(tag.createdAt as string)
       })) || []
-    };
+    } as unknown as Project;
   }
 
   // Helper: Regenerate all IDs to avoid conflicts
@@ -665,9 +666,9 @@ Another valid task`;
       const result = fileProcessor.importProjectJSON(JSON.stringify(exportData));
       
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe('Imported Project');
-      expect(result.data.inputLists).toHaveLength(1);
-      expect(result.data.inputLists[0].items).toHaveLength(1);
+      expect(result.data!.name).toBe('Imported Project');
+      expect(result.data!.inputLists).toHaveLength(1);
+      expect(result.data!.inputLists[0].items).toHaveLength(1);
       expect(result.itemCount).toBe(1);
     });
 
@@ -691,9 +692,9 @@ Another valid task`;
       const result = fileProcessor.importProjectJSON(JSON.stringify(exportData));
       
       expect(result.success).toBe(true);
-      expect(result.data.id).not.toBe('import1');
-      expect(result.data.inputLists[0].id).not.toBe('list1');
-      expect(result.data.inputLists[0].items[0].id).not.toBe('item1');
+      expect(result.data!.id).not.toBe('import1');
+      expect(result.data!.inputLists[0].id).not.toBe('list1');
+      expect(result.data!.inputLists[0].items[0].id).not.toBe('item1');
     });
 
     it('should restore Date objects from ISO strings', () => {
@@ -711,9 +712,9 @@ Another valid task`;
       const result = fileProcessor.importProjectJSON(JSON.stringify(exportData));
       
       expect(result.success).toBe(true);
-      expect(result.data.createdAt).toBeInstanceOf(Date);
-      expect(result.data.modifiedAt).toBeInstanceOf(Date);
-      expect(result.data.createdAt.toISOString()).toBe('2024-01-01T00:00:00.000Z');
+      expect(result.data!.createdAt).toBeInstanceOf(Date);
+      expect(result.data!.modifiedAt).toBeInstanceOf(Date);
+      expect(result.data!.createdAt.toISOString()).toBe('2024-01-01T00:00:00.000Z');
     });
 
     it('should reject malformed JSON', () => {
@@ -773,8 +774,8 @@ Another valid task`;
       const result = fileProcessor.importProjectJSON(JSON.stringify(exportData));
       
       expect(result.success).toBe(true);
-      expect(result.data.inputLists[0].items[0].tags).toHaveLength(2);
-      expect(result.data.mainList[0].tags).toHaveLength(1);
+      expect(result.data!.inputLists[0].items[0].tags).toHaveLength(2);
+      expect(result.data!.mainList[0].tags).toHaveLength(1);
       expect(result.itemCount).toBe(3); // 2 input + 1 main
     });
   });
@@ -860,7 +861,7 @@ describe('File Processing - Export Operations', () => {
     });
 
     it('should reject null/undefined project', () => {
-      const result = fileProcessor.exportProjectJSON(null as any);
+      const result = fileProcessor.exportProjectJSON(null as unknown as Project);
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('No project to export');
@@ -939,7 +940,7 @@ describe('File Processing - Export Operations', () => {
     });
 
     it('should reject null list', () => {
-      const result = fileProcessor.exportListCSV(null as any);
+      const result = fileProcessor.exportListCSV(null as unknown as InputList);
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('List is empty or invalid');
@@ -1189,12 +1190,12 @@ describe('File Processing - Error Handling & Edge Cases', () => {
       expect(importResult.success).toBe(true);
 
       // Verify data integrity (ignoring regenerated IDs)
-      expect(importResult.data.name).toBe(originalProject.name);
-      expect(importResult.data.inputLists).toHaveLength(1);
-      expect(importResult.data.inputLists[0].items).toHaveLength(2);
-      expect(importResult.data.mainList).toHaveLength(1);
-      expect(importResult.data.inputLists[0].items[0].content).toBe('Task with, comma and "quotes"');
-      expect(importResult.data.inputLists[0].items[1].content).toBe('Task with\nnewlines');
+      expect(importResult.data!.name).toBe(originalProject.name);
+      expect(importResult.data!.inputLists).toHaveLength(1);
+      expect(importResult.data!.inputLists[0].items).toHaveLength(2);
+      expect(importResult.data!.mainList).toHaveLength(1);
+      expect(importResult.data!.inputLists[0].items[0].content).toBe('Task with, comma and "quotes"');
+      expect(importResult.data!.inputLists[0].items[1].content).toBe('Task with\nnewlines');
     });
 
     it('should handle export to CSV and text maintaining content', () => {
