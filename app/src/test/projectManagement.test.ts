@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type { AppState, Project, InputList, MainListItem, Tag, InputListItem, ProjectSummary } from '../types/index';
 
 // Test data helpers
