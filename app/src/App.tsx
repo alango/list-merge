@@ -141,6 +141,38 @@ function App() {
     console.log('Loading project:', projectId);
   };
 
+  const handleImportProject = (projectData: Project) => {
+    // Validate the imported project data structure
+    if (!projectData || typeof projectData !== 'object') {
+      console.error('Invalid project data');
+      return;
+    }
+
+    // Ensure required fields exist with defaults
+    const importedProject: Project = {
+      ...projectData,
+      id: projectData.id || Date.now().toString(),
+      name: projectData.name || 'Imported Project',
+      createdAt: projectData.createdAt ? new Date(projectData.createdAt) : new Date(),
+      modifiedAt: new Date(), // Always update modified time on import
+      inputLists: projectData.inputLists || [],
+      mainList: projectData.mainList || []
+    };
+
+    // Set the imported project as current and clear UI state
+    setAppState(prev => ({
+      ...prev,
+      currentProject: importedProject,
+      ui: { 
+        ...prev.ui, 
+        selectedItems: [], 
+        activeInputList: importedProject.inputLists.length > 0 ? importedProject.inputLists[0].id : null 
+      }
+    }));
+    
+    console.log('Project imported successfully:', importedProject);
+  };
+
   // Input list management
   const handleSelectInputList = (listId: string) => {
     setAppState(prev => ({
@@ -169,9 +201,30 @@ function App() {
     }));
   };
 
-  const handleImportToList = (listId: string) => {
-    // TODO: Implement file import functionality
-    console.log('Importing to list:', listId);
+  const handleImportListItems = (listId: string, items: string[]) => {
+    if (!appState.currentProject) return;
+
+    // Convert string items to InputListItem objects
+    const newItems = items.map(content => ({
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+      content: content.trim(),
+      isUsed: false,
+      tags: []
+    }));
+
+    setAppState(prev => ({
+      ...prev,
+      currentProject: prev.currentProject ? {
+        ...prev.currentProject,
+        inputLists: prev.currentProject.inputLists.map(list =>
+          list.id === listId ? {
+            ...list,
+            items: [...list.items, ...newItems]
+          } : list
+        ),
+        modifiedAt: new Date()
+      } : null
+    }));
   };
 
   // Input list item management
@@ -907,9 +960,12 @@ function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <ProjectManager
+        currentProject={appState.currentProject}
+        tagPool={appState.tagPool}
         onNewProject={handleNewProject}
         onLoadProject={handleLoadProject}
         onSaveProject={handleSaveProject}
+        onImportProject={handleImportProject}
       />
       
       <DndContext
@@ -921,7 +977,7 @@ function App() {
           appState={appState}
           onSelectInputList={handleSelectInputList}
           onAddInputList={handleAddInputList}
-          onImportToList={handleImportToList}
+          onImportListItems={handleImportListItems}
           onAddItemToList={handleAddItemToList}
           onEditListItem={handleEditListItem}
           onDeleteListItem={handleDeleteListItem}

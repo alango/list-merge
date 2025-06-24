@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { InputList, InputListItem, Tag } from '../types/index';
 import { TagInput, TagDisplay, AddTagButton } from './shared';
 import { useItemSelection } from './shared/hooks';
+import { ImportPreviewModal } from './ImportPreviewModal';
+import { FileProcessor, type ImportResult } from '../utils/fileProcessing';
 
 
 // Drag data interface
@@ -232,7 +234,7 @@ interface InputListPanelProps {
   tagPool: Tag[];
   onSelectList: (listId: string) => void;
   onAddList: () => void;
-  onImportList: (listId: string) => void;
+  onImportListItems: (listId: string, items: string[]) => void;
   onAddItem: (listId: string, content: string) => void;
   onEditItem: (listId: string, itemId: string, content: string) => void;
   onDeleteItem: (listId: string, itemId: string) => void;
@@ -252,7 +254,7 @@ export const InputListPanel: React.FC<InputListPanelProps> = ({
   tagPool,
   onSelectList,
   onAddList,
-  onImportList,
+  onImportListItems,
   onAddItem,
   onEditItem,
   onDeleteItem,
@@ -303,7 +305,7 @@ export const InputListPanel: React.FC<InputListPanelProps> = ({
               list={inputLists.find(l => l.id === activeListId)!}
               selectedItems={selectedItems}
               tagPool={tagPool}
-              onImport={() => onImportList(activeListId)}
+              onImport={(items) => onImportListItems(activeListId, items)}
               onAddItem={(content) => onAddItem(activeListId, content)}
               onEditItem={(itemId, content) => onEditItem(activeListId, itemId, content)}
               onDeleteItem={(itemId) => onDeleteItem(activeListId, itemId)}
@@ -333,7 +335,7 @@ interface InputListContentProps {
   list: InputList;
   selectedItems: string[];
   tagPool: Tag[];
-  onImport: () => void;
+  onImport: (items: string[]) => void;
   onAddItem: (content: string) => void;
   onEditItem: (itemId: string, content: string) => void;
   onDeleteItem: (itemId: string) => void;
@@ -350,7 +352,7 @@ const InputListContent: React.FC<InputListContentProps> = ({
   list, 
   selectedItems,
   tagPool,
-  onImport, 
+  onImport,
   onAddItem, 
   onEditItem, 
   onDeleteItem, 
@@ -367,6 +369,12 @@ const InputListContent: React.FC<InputListContentProps> = ({
   const [editingContent, setEditingContent] = React.useState('');
   const [isRenamingList, setIsRenamingList] = React.useState(false);
   const [listNameInput, setListNameInput] = React.useState(list.name);
+  
+  // Import-related state
+  const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
+  const [importResult, setImportResult] = React.useState<ImportResult<string[]> | null>(null);
+  const [selectedFileName, setSelectedFileName] = React.useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddItem = () => {
     if (newItemContent.trim()) {
@@ -410,6 +418,62 @@ const InputListContent: React.FC<InputListContentProps> = ({
     setIsRenamingList(false);
   };
 
+  // Import functionality handlers
+  const handleImportClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFileName(file.name);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) {
+        setImportResult({ success: false, error: 'Could not read file content' });
+        setIsImportModalOpen(true);
+        return;
+      }
+
+      // Process the file content
+      const result = FileProcessor.importListContent(content);
+      setImportResult(result);
+      setIsImportModalOpen(true);
+    };
+
+    reader.onerror = () => {
+      setImportResult({ success: false, error: 'Error reading file' });
+      setIsImportModalOpen(true);
+    };
+
+    reader.readAsText(file);
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirmImport = () => {
+    if (importResult?.success && importResult.data) {
+      onImport(importResult.data);
+      setIsImportModalOpen(false);
+      setImportResult(null);
+      setSelectedFileName('');
+    }
+  };
+
+  const handleCancelImport = () => {
+    setIsImportModalOpen(false);
+    setImportResult(null);
+    setSelectedFileName('');
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Header with list name and actions */}
@@ -439,7 +503,7 @@ const InputListContent: React.FC<InputListContentProps> = ({
         
         <div className="flex space-x-2">
           <button 
-            onClick={onImport}
+            onClick={handleImportClick}
             className="text-sm btn-secondary"
           >
             Import
@@ -511,6 +575,24 @@ const InputListContent: React.FC<InputListContentProps> = ({
           ))
         )}
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,.csv,.json"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Import preview modal */}
+      <ImportPreviewModal
+        isOpen={isImportModalOpen}
+        result={importResult}
+        fileName={selectedFileName}
+        onConfirm={handleConfirmImport}
+        onCancel={handleCancelImport}
+      />
     </div>
   );
 };

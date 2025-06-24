@@ -8,7 +8,7 @@ interface WorkspaceProps {
   appState: AppState;
   onSelectInputList: (listId: string) => void;
   onAddInputList: () => void;
-  onImportToList: (listId: string) => void;
+  onImportListItems: (listId: string, items: string[]) => void;
   onAddItemToList: (listId: string, content: string) => void;
   onEditListItem: (listId: string, itemId: string, content: string) => void;
   onDeleteListItem: (listId: string, itemId: string) => void;
@@ -32,7 +32,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   appState,
   onSelectInputList,
   onAddInputList,
-  onImportToList,
+  onImportListItems,
   onAddItemToList,
   onEditListItem,
   onDeleteListItem,
@@ -76,7 +76,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           tagPool={appState.tagPool}
           onSelectList={onSelectInputList}
           onAddList={onAddInputList}
-          onImportList={onImportToList}
+          onImportListItems={onImportListItems}
           onAddItem={onAddItemToList}
           onEditItem={onEditListItem}
           onDeleteItem={onDeleteListItem}
