@@ -304,7 +304,7 @@ const TagChip: React.FC<TagChipProps> = ({ tag, isClickable, onClick, onEdit, on
       <>
         {/* Tag placeholder to maintain layout */}
         <div
-          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border opacity-50"
+          className="inline-flex items-center px-1.5 py-0 rounded-full text-[10px] font-medium border opacity-50"
           style={chipStyle}
         >
           <span className="truncate max-w-24 select-none">{tag.name}</span>
@@ -384,7 +384,7 @@ const TagChip: React.FC<TagChipProps> = ({ tag, isClickable, onClick, onEdit, on
       ref={setNodeRef}
       style={chipStyle}
       onClick={isClickable ? onClick : undefined}
-      className={`group inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border relative ${
+      className={`group inline-flex items-center px-1.5 py-0 rounded-full text-[10px] font-medium border relative ${
         isClickable 
           ? 'cursor-pointer hover:opacity-80' 
           : isDragging
