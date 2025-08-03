@@ -131,15 +131,6 @@ function App() {
     }));
   };
 
-  const handleSaveProject = () => {
-    // TODO: Implement project saving to localStorage
-    console.log('Saving project:', appState.currentProject);
-  };
-
-  const handleLoadProject = (projectId: string) => {
-    // TODO: Implement project loading from localStorage
-    console.log('Loading project:', projectId);
-  };
 
   const handleImportProject = (projectData: Project) => {
     // Validate the imported project data structure
@@ -969,8 +960,6 @@ function App() {
         currentProject={appState.currentProject}
         tagPool={appState.tagPool}
         onNewProject={handleNewProject}
-        onLoadProject={handleLoadProject}
-        onSaveProject={handleSaveProject}
         onImportProject={handleImportProject}
       />
       

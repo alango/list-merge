@@ -219,7 +219,7 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
       </div>
       
       {item.isUsed && (
-        <div className="absolute top-1 right-1 text-xs text-gray-400 bg-gray-100 px-1 rounded">
+        <div className="absolute top-1 left-1 text-xs text-gray-400 bg-gray-100 px-1 rounded">
           Used
         </div>
       )}
