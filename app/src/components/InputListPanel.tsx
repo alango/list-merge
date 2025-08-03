@@ -144,7 +144,7 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
         </div>
       ) : (
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate select-none">
+          <div className="text-sm font-medium text-gray-900 select-none break-words">
             {item.content}
           </div>
           <div className="mt-1 flex flex-wrap gap-1 items-center">
@@ -174,12 +174,12 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
         </div>
       )}
       
-      {/* Action buttons */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 flex items-center space-x-1">
+      {/* Action buttons - positioned absolutely at top without taking space */}
+      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex items-center space-x-1">
         {!item.isUsed && (
           <button
             onClick={(e) => { e.stopPropagation(); onMoveToMain(item.id); }}
-            className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded"
+            className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 cursor-pointer px-1 py-0.5 rounded transition-colors"
             title="Move to main list"
           >
             →
@@ -187,29 +187,29 @@ const DraggableInputItem: React.FC<DraggableInputItemProps> = ({
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onStartEdit(item); }}
-          className="text-xs text-gray-600 hover:text-gray-700 px-2 py-1 rounded"
+          className="text-xs text-gray-600 hover:text-gray-700 hover:bg-gray-100 cursor-pointer px-1 py-0.5 rounded transition-colors"
           title="Edit item"
         >
           ✏️
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
-          className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded"
+          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer px-1 py-0.5 rounded transition-colors"
           title="Delete item"
         >
           🗑️
         </button>
         
-        {/* Drag handle - make it larger and more prominent */}
+        {/* Drag handle */}
         {!item.isUsed && !isEditing && (
           <div 
             ref={setDragNodeRef}
-            className="flex-shrink-0 cursor-grab active:cursor-grabbing px-2 py-1 ml-1 rounded hover:bg-gray-100"
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing px-1 py-0.5 rounded hover:bg-gray-100 transition-colors"
             {...attributes}
             {...listeners}
             title="Drag to move to main list"
           >
-            <div className="w-5 h-5 text-gray-400 hover:text-gray-600">
+            <div className="w-4 h-4 text-gray-400 hover:text-gray-600">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
               </svg>
