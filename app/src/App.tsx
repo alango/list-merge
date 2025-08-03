@@ -268,6 +268,10 @@ function App() {
             )
           } : list
         ),
+        // Also update the corresponding item in main list if it exists
+        mainList: prev.currentProject.mainList.map(item =>
+          item.id === itemId ? { ...item, content } : item
+        ),
         modifiedAt: new Date()
       } : null
     }));
@@ -286,6 +290,8 @@ function App() {
             items: list.items.filter(item => item.id !== itemId)
           } : list
         ),
+        // Also remove the corresponding item from main list if it exists
+        mainList: prev.currentProject.mainList.filter(item => item.id !== itemId),
         modifiedAt: new Date()
       } : null
     }));
