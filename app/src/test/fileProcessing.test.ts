@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FileProcessor, type ImportResult, type ExportResult } from '../utils/fileProcessing';
+import { FileProcessor } from '../utils/fileProcessing';
 import type { Project, InputList, MainListItem, Tag, InputListItem } from '../types/index';
 
 // Test data helpers

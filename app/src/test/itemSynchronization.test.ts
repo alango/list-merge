@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Project, InputListItem, MainListItem } from '../types/index';
+import type { Project } from '../types/index';
 
 // Mock project setup for testing synchronization
 const createTestProject = (): Project => ({

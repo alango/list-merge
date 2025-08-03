@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { InputListPanel } from '../components/InputListPanel';
-import type { InputList, Tag, InputListItem } from '../types/index';
+import type { InputList, Tag } from '../types/index';
 
 // Mock DnD Kit
 vi.mock('@dnd-kit/core', () => ({
